@@ -1,0 +1,171 @@
+<#
+.Synopsis
+   Short description
+.DESCRIPTION
+   Long description
+.EXAMPLE
+   Example of how to use this cmdlet
+.EXAMPLE
+   Another example of how to use this cmdlet
+.INPUTS
+   Inputs to this cmdlet (if any)
+.OUTPUTS
+   Output from this cmdlet (if any)
+.NOTES
+   General notes
+.COMPONENT
+   The component this cmdlet belongs to
+.ROLE
+   The role this cmdlet belongs to
+.FUNCTIONALITY
+   The functionality that best describes this cmdlet
+#>
+
+function Write-Log
+{
+    [CmdletBinding(                  
+                  ConfirmImpact='Medium')]
+    [OutputType([String])]
+    Param
+    (
+        # Param1
+        [parameter(Mandatory=$false,
+                   Position=0,
+                   HelpMessage='The message to be logged to a file.')]        
+        [String]
+        $Message = "",
+
+        # Param2
+        [parameter(Mandatory=$false,
+                   HelpMessage='The location where you would like to write the log file. (Defaults to c:\Powershell\Logs)')]       
+        [String]
+        $LogLocation = "c:\Powershell\Logs",
+
+        # Param3
+        [parameter(Mandatory=$true)]
+        [ValidateScript({
+            # Let's have a more meaningful error message for those of us who don't read regex!
+            If ($_ -match "^[a-zA-Z0-9_.-]+$") {
+                $True
+            }
+            else {
+                Throw "The logname '$_' must contain at least one character and can only contain alphanumeric characters or the symbols _ or . or -"
+            }
+        })]  
+        [ValidateLength(1,25)]       
+        [String]
+        $LogName,
+
+        #Param4
+        [parameter(Mandatory=$false)]
+        [ValidateSet(".log",".err",".dat")]
+        [String]
+        $LogExtension = ".log",
+
+        #Param5
+        [parameter(Mandatory=$false,
+                   HelpMessage='If you specify this switch then the date will not be added to the name of the logfile.')]
+        [Switch]        
+        $DoNotAddDateToLogName,
+
+        #Param6
+        [parameter(Mandatory=$false,
+                   HelpMessage='Specify this switch to overwrite any existing logfile of the same name.')]
+        [Switch]        
+        $Overwrite,
+
+        #Param6
+        [parameter(Mandatory=$false,
+                   HelpMessage='Send the current date and time to the logfile.')]
+        [Switch]        
+        $LogDateTime
+
+    ) #End Param
+
+    Begin {    
+        # Verify Log Location exists
+        if (!(test-path -Path $LogLocation -PathType Container)) {
+        #The Log location does not exist...attempt to create the location specified...
+            try {
+                New-Item -Path $LogLocation -ItemType directory -ErrorAction Stop -ErrorVariable x
+            } 
+            catch {
+                Write-Error "An error occured while trying to create the directory $LogLocation that prevents this script from continuing."
+                Write-error "The error encountered was: $x"
+            }      
+        } #End if
+
+        # Date in logname:
+        # By default, the date will be added to the name of the log file unless the switch -DoNotAddDateToLogName has been specified.        
+        if (!($DoNotAddDateToLogName)) {            
+            $logname += (Get-Date).ToString('_dd-MM-yyyy')
+        }  
+        
+        #Logname file extension:
+        # By default, the log name will have the .log extension unless specified otherwise by the -LogExtension parameter.        
+        switch ($LogExtension) {
+            '.err' {$logname+='.err'}
+            '.dat' {$logname+='.dat'}
+            default {$logname+='.log'}
+        } #End switch
+
+    } #End Begin
+    
+    Process {  
+        
+        #Write the log...
+        if ($Overwrite) { 
+            if ($LogDateTime) {
+                $message + (Get-Date) | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -force
+            } else {
+                $Message | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -force                       
+              }  
+        }
+        else {
+            if ($LogDateTime) {
+                $message + (Get-Date) | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -Append                
+            } else {                        
+                $Message | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -Append
+              }      
+        }        
+    } #End Process
+
+    End{}       
+       
+} # End Function
+
+
+
+#Examples
+#Add a line break
+Write-Log -message " " -LogName test -LogLocation c:\OH\Logger
+#Add some prettying up!
+Write-Log -message "****************************************" -LogName test -LogLocation c:\OH\Logger
+#Add a log start time
+Write-Log -message "Start processing at: " -LogName test -LogLocation c:\OH\Logger -LogDateTime
+#Add some prettying up!
+Write-Log -message "****************************************" -LogName test -LogLocation c:\OH\Logger
+#Add log messages
+Write-Log -message "Message1" -LogName test -LogLocation c:\OH\Logger
+Write-Log -message "Message2" -LogName test -LogLocation c:\OH\Logger
+Write-Log -message "Message3" -LogName test -LogLocation c:\OH\Logger
+#Add some prettying up!
+Write-Log -message "****************************************" -LogName test -LogLocation c:\OH\Logger
+#Add log end time:
+Write-Log -message "End processing at: " -LogName test -LogLocation c:\OH\Logger -LogDateTime
+#Add some prettying up!
+Write-Log -message "****************************************" -LogName test -LogLocation c:\OH\Logger
+
+
+#Overwrite the current log
+#Write-Log -message "Overwritten at: " -LogName test -LogLocation c:\OH\Logger -Overwrite -LogDateTime
+
+#Just send the date and time to the logfile
+#Write-Log -LogName test -LogLocation c:\OH\Logger -LogDateTime
+
+#Send variables as the message
+#$monkey = "Here is a monkey"
+#write-log $monkey -LogExtension .err
+
+
+
