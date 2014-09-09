@@ -65,14 +65,7 @@ Created By: OH
 http://www.fearthemonkey.co.uk
 .LINK
 https://github.com/ozthe2/Powershell.git
-
-
-
-
 #>
-
-
-
 
 
     [CmdletBinding(                  
