@@ -1,31 +1,61 @@
 <#
 .Synopsis
-   Checks and remediates home directory ACL's
+Checks and remediates home directory ACL's
 .DESCRIPTION
-   Checks a directory for the permissions specified and if not correct will modify the ACL to the correct permissions.
+Checks a directory for the permissions specified and if not correct will modify the ACL to the correct permissions. (Inheritance is turned on)
+.PARAMETER DirectoryToCheck
+Type the name of the directory to which you wish to determine the file permissions on.  eg c:\MyDirectory or \\Server\share$\Dir1
+.PARAMETER ACLToCheck
+Select from FullControl, ReadAndExecute, or Modify.  If this permission has not been set already for the specified UserAccount then it will be set.
+.PARAMETER UserAccount
+This is the account name that you wish to check has permissions.  Do not use any back-slashes or forward slashes and do not prefix with a domain.
+.PARAMETER Domain
+If you do not specify a domain, then the user account specified will be assumed to belong to the local computer.  If you are checking domain accounts then enter your domain netbios name here.
 .EXAMPLE
-   Example of how to use this cmdlet
+Show the full object returned
+Write-Output $($result)
 .EXAMPLE
-   Another example of how to use this cmdlet
+The Directory is not valid...
+$result = Remediate-DirACL -UserAccount fullc -DirectoryToCheck C:\builds -ACLToCheck Modify     
+If (!($result.DirPathExists)) {
+    $message = "$($result.DirectoryChecked) is not a valid directory.  Please check that the directory exisits and try again."
+    Write-Log -Message $message -LogName myLog1 -LogLocation c:\
+}
+.EXAMPLE
+The required permission is already set for the specified user on the specified directory - no changes to be made.    
+$result = Remediate-DirACL -UserAccount csuadmoh -DirectoryToCheck C:\builds -ACLToCheck modify -domain MyDomain    
+if ($result.ACLAlreadyPresent) {         
+    $message = "$($result.FullName) already has $($result.aclrequested) permissions on $($result.directorychecked). - No changes have been made"
+    Write-Log -Message $message -LogName myLog1 -LogLocation c:\
+.EXAMPLE
+The required permission do not exist for the specified user on the specified directory - changes will be made.
+$result = Remediate-DirACL -UserAccount csuadmoh -DirectoryToCheck C:\builds -ACLToCheck modify -domain MyDomain
+if (!($result.ACLAlreadyPresent)) {         
+    $message = "$($result.aclrequested) permissions for user $($result.FullName) on $($result.directorychecked) will be applied."
+    Write-Log -Message $message -LogName myLog1 -LogLocation c:\
+    if ($result.ACLSetSuccessfully) {
+        Write-Log -Message "Successfully applied changes!" -LogName myLog1 -LogLocation c:\
+    }
+    else {
+        Write-Log -Message "An error occured trying to apply the new permissions!" -LogName myLog1 -LogLocation c:\
+    }            
+}
 .INPUTS
-   Inputs to this cmdlet (if any)
-.OUTPUTS
-   Output from this cmdlet (if any)
+    None.  You cannot pipe objects to Remediate-DirACL
 .NOTES
-   General notes
-.COMPONENT
-   The component this cmdlet belongs to
-.ROLE
-   The role this cmdlet belongs to
-.FUNCTIONALITY
-   The functionality that best describes this cmdlet
+Version: 1.0
+Date: 16 September 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
 #>
-function Remediate-DirACL
-{
+function Remediate-DirACL {
     [CmdletBinding(SupportsShouldProcess=$true, 
                   PositionalBinding=$false,                  
                   ConfirmImpact='Medium')]
-    [OutputType([String])]
+    [OutputType([psobject])]
     Param
     (
         # Param1
@@ -51,50 +81,42 @@ function Remediate-DirACL
         [Alias("SAMAccountName","UserName","Name")] 
         [string]
         $UserAccount,
-                
-        # Param5
-        [parameter(Mandatory=$false)]                   
-        [Switch]        
-        $NoInheritance,
 
-        # Param6 If not specified will assume user is BuiltIn\Username
+        # Param4 If not specified will assume user is BuiltIn\Username
         [parameter(Mandatory=$false)]                         
         [String]        
         $Domain = $env:COMPUTERNAME
     )
       
       
-        BEGIN {
-                #clean up the account name - remove any forward or backslashes 
-                if ($UserAccount -like "*\*") {
-                    $UserAccount = $UserAccount.Split("\")[1]
-                }
-
-                if ($UserAccount -like "*/*") {
-                    $UserAccount = $UserAccount.Split("/")[1]
-                }
-                $useraccount = $useraccount.Replace("/","")
-                $useraccount = $useraccount.Replace("\","")
-
-                #clean up the domain name - remove any forward or backslashes or periods 
-                if ($domain -like "*.*") {
-                    $domain = $domain.Split(".")[0]
-                }
-
-                $domain = $domain.Replace("/","")
-                $domain = $domain.Replace("\","")
-                $domain = $domain.Replace(".","")        
         
-                #Build fullname in format of domain\username
-                $FullUserName = ($domain + "\" + $UserAccount)
+            #clean up the account name - remove any forward or backslashes 
+            if ($UserAccount -like "*\*") {
+                $UserAccount = $UserAccount.Split("\")[1]
+            }
+
+            if ($UserAccount -like "*/*") {
+                $UserAccount = $UserAccount.Split("/")[1]
+            }
+            $useraccount = $useraccount.Replace("/","")
+            $useraccount = $useraccount.Replace("\","")
+
+            #clean up the domain name - remove any forward or backslashes or periods 
+            if ($domain -like "*.*") {
+                $domain = $domain.Split(".")[0]
+            }
+
+            $domain = $domain.Replace("/","")
+            $domain = $domain.Replace("\","")
+            $domain = $domain.Replace(".","")        
+        
+            #Build fullname in format of domain\username
+            $FullUserName = ($domain + "\" + $UserAccount)
            
-                #Test to see if the directory actually exists 
-                [boolean]$PathExists = test-path -Path $DirectoryToCheck
-               
-         } # end begin
-
-
-         PROCESS {
+            #Test to see if the directory actually exists 
+            [boolean]$PathExists = test-path -Path $DirectoryToCheck
+                
+         
 
             #Get the current ACL for the directory
             $ACL = get-acl -Path $DirectoryToCheck
@@ -107,13 +129,14 @@ function Remediate-DirACL
               if (($a.IdentityReference.ToString() -eq $FullUserName) -and ($a.FileSystemRights.ToString() -like "*$ACLToCheck*"))
               {
                 $aclcorrect = $true
+                $ACLSetSuccess = $false
               } 
             } # End foreach
 
             #Write the requested ACL as it is currently not present.
             if (!($ACLCorrect)) {
                 try {
-                    $aclRule = New-Object System.Security.AccessControl.FileSystemAccessRule(($FullUserName), "$ACLToCheck", "ContainerInherit, ObjectInherit", "None", "Allow")
+                    $aclRule = New-Object System.Security.AccessControl.FileSystemAccessRule(($FullUserName), "$ACLToCheck", "ContainerInherit, ObjectInherit", "None", "Allow")                   
                     $acl.SetAccessRule($aclRule)
                     Set-Acl $DirectoryToCheck $acl -ea Stop -ev x
                     $ACLSetSuccess = $true  
@@ -133,59 +156,10 @@ function Remediate-DirACL
                             'Domain' = $Domain 
                             'ACLRequested' = $ACLToCheck
                             'ACLAlreadyPresent' = $ACLCorrect
-                            'ACLSetSuccessfully' = $ACLSetSuccess
+                            'ACLSetSuccessfully' = $ACLSetSuccess                            
                             }
                 $obj = New-Object -TypeName psobject -Property $props                                                        
                 
-            return $obj  
-
-        } # end process
-
-
-        END {}
+            return $obj         
    
 } # End Function
-
-
-
-    # ++++++++++++++++  TESTING +++++++++++++++++++++++
-
-    #$result = Remediate-DirACL -UserAccount csuadmoh -DirectoryToCheck C:\builds -ACLToCheck Modify -domain chi
-    $result = Remediate-DirACL -UserAccount csuadmoh -DirectoryToCheck C:\builds -ACLToCheck ReadAndExecute -domain chi
-    #$result = Remediate-DirACL -UserAccount fullc -DirectoryToCheck C:\builds -ACLToCheck FullControl
-    
-    #Testing
-    #$result.dirpathexists
-    #$result.dirpatherror
-    #$result.ACL
-    #$result.domain
-    #$result.useraccount
-    #$result.FullName
-   
-    if(!($result.ACLAlreadyPresent)) {
-        write-output "$($result.ACLRequested) not currently set for $($result.FullName) on $($result.directorychecked) Setting..."
-        $message = "$($result.ACLRequested) not currently set for $($result.FullName) on $($result.directorychecked) Setting..."
-        Write-Log -Message $message -LogName myLog1 -LogLocation c:\
-    } else {
-        Write-Output "$($result.FullName) already has $($result.aclrequested) permissions on $($result.directorychecked)"
-        $message = "$($result.FullName) already has $($result.aclrequested) permissions on $($result.directorychecked)"
-        Write-Log -Message $message -LogName myLog1 -LogLocation c:\
-      }
-
-    if ($result.ACLSetSuccessfully) {
-        write-output "ACL has been set to: $($result.ACLRequested)"
-        $message = "ACL has been set to: $($result.ACLRequested)"
-        Write-Log -Message $message -LogName myLog1 -LogLocation c:\
-    }
-
-    
-    
-
-
-
-     <#
-        if ($pscmdlet.ShouldProcess("Target", "Operation"))
-        {
-        }#>
-
-      
