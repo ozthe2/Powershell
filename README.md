@@ -2,7 +2,7 @@ Write-Log
 ---------
 Writes log files!
 
-Remediate-DirACL
+Check-DirACL
 ----------------
-Checks a user account for given permissions against a defined directory and if the permissions do not exist, sets them.
+Checks a user account for given NTFS permissions against a defined directory.
 
