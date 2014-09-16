@@ -1,0 +1,133 @@
+<#
+.Synopsis
+Checks and remediates home directory ACL's
+.DESCRIPTION
+Checks a directory for the permissions specified.
+.PARAMETER DirectoryToCheck
+Type the name of the directory to which you wish to determine the file permissions on.  eg c:\MyDirectory or \\Server\share$\Dir1
+.PARAMETER ACLToCheck
+Select from FullControl, ReadAndExecute, or Modify.
+.PARAMETER UserAccount
+This is the account name that you wish to check has permissions.  Do not use any back-slashes or forward-slashes and do not prefix with a domain.
+.PARAMETER Domain
+If you do not specify a domain, then the user account specified will be assumed to belong to the local computer.  If you are checking domain accounts then enter your domain netbios name here.
+.EXAMPLE
+Examples to come soon
+.NOTES
+Version: 1.0
+Date: 16 September 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+function Check-DirACL {
+    [CmdletBinding(SupportsShouldProcess=$true, 
+                  PositionalBinding=$false,                  
+                  ConfirmImpact='Medium')]
+    [OutputType([psobject])]
+    Param
+    (
+        # Param3
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$true,  
+                   Position=0)]              
+        [Alias("SAMAccountName","UserName","Name")] 
+        [string[]]
+        $UserAccount,
+
+        # Param1
+        [Parameter(Mandatory=$true,  
+                   Position=0)]
+        [ValidateNotNull()]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $DirectoryToCheck,
+
+        # Param2
+        [Parameter(Mandatory=$true)]        
+        [AllowNull()]        
+        [AllowEmptyString()]        
+        [ValidateSet("ReadAndExecute", "Modify", "FullControl")]
+        [string]
+        $ACLToCheck,
+
+        # Param4 If not specified will assume user is BuiltIn\Username
+        [parameter(Mandatory=$false)]                         
+        [String]        
+        $Domain = $env:COMPUTERNAME
+    )
+      
+    BEGIN {}
+  
+    PROCESS {             
+            
+        foreach ($User in $UserAccount) {        
+            
+            #clean up the account name - remove any forward or backslashes 
+            if ($User -like "*\*") {
+                $User = $User.Split("\")[1]
+            }
+
+            if ($User -like "*/*") {
+                $User = $User.Split("/")[1]
+            }
+            $user = $user.Replace("/","")
+            $user = $user.Replace("\","")
+
+            #clean up the domain name - remove any forward or backslashes or periods 
+            if ($domain -like "*.*") {
+                $domain = $domain.Split(".")[0]
+            }
+
+            $domain = $domain.Replace("/","")
+            $domain = $domain.Replace("\","")
+            $domain = $domain.Replace(".","")        
+        
+            #Build fullname in format of domain\username
+            $FullUserName = ($domain + "\" + $User)   
+
+            #Get the current ACL for the directory
+            $ACL = get-acl -Path $DirectoryToCheck                       
+
+            #Check to see if Permissions are already set...
+            $ACLCorrect = $false
+            
+            foreach ($a in $acl.Access) {                 
+              if (($a.IdentityReference.ToString() -eq $FullUserName) -and ($a.FileSystemRights.ToString() -like "*$ACLToCheck*"))
+              { 
+                $ACLCorrect = $True
+               } 
+            } # End foreach
+
+              #Create object for output
+              $props = @{
+                        'PermissionsAlreadySet' = $ACLCorrect;
+                        'User' = $FullUserName;
+                        'Permissions' = $ACLToCheck;  
+                        'Directory' = $DirectoryToCheck                              
+                        }
+               $obj = New-Object -TypeName psobject -Property $props
+
+               $obj 
+
+        } #End ForEach  
+    } # End Process
+
+    END {}
+
+}# End Function
+
+$results = Remediate-DirACL -UserAccount "csustaoh","csuadmoh", "heaumeo" -DirectoryToCheck C:\builds -ACLToCheck Modify -Domain chi
+
+
+foreach ($f in $results) {
+ $f.permissionsalreadyset
+}
+ 
+
+
+ 
+ 
