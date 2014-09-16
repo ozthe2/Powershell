@@ -1,6 +1,6 @@
 <#
 .Synopsis
-Checks and remediates home directory ACL's
+Checks home directory ACL's
 .DESCRIPTION
 Checks a directory for the permissions specified.
 .PARAMETER DirectoryToCheck
