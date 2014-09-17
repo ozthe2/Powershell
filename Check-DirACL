@@ -33,6 +33,8 @@ Created By: OH
 http://www.fearthemonkey.co.uk
 .LINK
 https://github.com/ozthe2/Powershell.git
+.LINK
+Set-DirACL
 #>
 function Check-DirACL {
     [CmdletBinding(SupportsShouldProcess=$true, 
