@@ -1,18 +1,30 @@
 <#
 .Synopsis
-Checks home directory ACL's
+Checks a user account to see if they have certain permissions on a directory
 .DESCRIPTION
-Checks a directory for the permissions specified.
+Checks a user account to see if they have one of three basic NTFS permissions on a directory (Including inheritance)
 .PARAMETER DirectoryToCheck
 Type the name of the directory to which you wish to determine the file permissions on.  eg c:\MyDirectory or \\Server\share$\Dir1
 .PARAMETER ACLToCheck
-Select from FullControl, ReadAndExecute, or Modify.
+Which basic NTFS permission will be checked.  Select from FullControl, ReadAndExecute, or Modify.
 .PARAMETER UserAccount
 This is the account name that you wish to check has permissions.  Do not use any back-slashes or forward-slashes and do not prefix with a domain.
 .PARAMETER Domain
-If you do not specify a domain, then the user account specified will be assumed to belong to the local computer.  If you are checking domain accounts then enter your domain netbios name here.
+If you do not specify a domain, then the user account specified will be assumed to be a local computer account.  If you are checking domain accounts then enter your domain netbios name here.
 .EXAMPLE
-Examples to come soon
+Remediate-DirACL -UserAccount BloggsF -DirectoryToCheck C:\MyFolder -ACLToCheck Modify
+
+The above example will display the directory being checked, the username, the permissions being checked and if the permissions are already set for that user or not.  In addition, because the domain parameter was not specified, the user account being checked is assumed to exist on the local computer.
+.EXAMPLE
+$results = Remediate-DirACL -UserAccount BloggsF,GreenD,SinatraF -DirectoryToCheck \\server\share\dir -ACLToCheck Modify -Domain MyDomain
+
+foreach ($object in $results) {
+    if ($object.permissionsalreadyset) {
+        #Do something...
+    } 
+}
+
+The above example shows how you might use this in a script.  Three usernames are piped to Remediate-DirACL and if 'Modify' permissions are already set for any of the piped users on the specified directory then do something...
 .NOTES
 Version: 1.0
 Date: 16 September 2014
@@ -90,11 +102,11 @@ function Check-DirACL {
             $FullUserName = ($domain + "\" + $User)   
 
             #Get the current ACL for the directory
-            $ACL = get-acl -Path $DirectoryToCheck                       
-
-            #Check to see if Permissions are already set...
-            $ACLCorrect = $false
+            $ACL = get-acl -Path $DirectoryToCheck 
             
+            $ACLCorrect = $false                      
+
+            #Check to see if Permissions are already set... 
             foreach ($a in $acl.Access) {                 
               if (($a.IdentityReference.ToString() -eq $FullUserName) -and ($a.FileSystemRights.ToString() -like "*$ACLToCheck*"))
               { 
@@ -119,15 +131,3 @@ function Check-DirACL {
     END {}
 
 }# End Function
-
-$results = Remediate-DirACL -UserAccount "csustaoh","csuadmoh", "heaumeo" -DirectoryToCheck C:\builds -ACLToCheck Modify -Domain chi
-
-
-foreach ($f in $results) {
- $f.permissionsalreadyset
-}
- 
-
-
- 
- 
