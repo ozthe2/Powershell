@@ -1,0 +1,134 @@
+<#
+.Synopsis
+Applies basic NTFS permissions to a specified folder ('This folder, Subfolder and Files') for specific user accounts.
+.DESCRIPTION
+Checks a user account to see if they have one of three basic NTFS permissions on a directory (Including inheritance)
+.PARAMETER DirectoryToModify
+Type the name of the directory to which you wish to set the NTFS permission on.  eg c:\MyDirectory or \\Server\share$\Dir1
+.PARAMETER ACLToAdd
+Which basic NTFS permission will be applied to the directory specified by the DirectoryToModify parameter.  Select from FullControl, ReadAndExecute, or Modify.
+.PARAMETER UserAccount
+This is the account name that you wish to give the permissions to.  Do not use any back-slashes or forward-slashes and do not prefix with a domain.
+.PARAMETER Domain
+If you do not specify a domain, then the user account specified will be assumed to be a local computer account.  If you are checking domain accounts then enter your domain netbios name here.
+.EXAMPLE
+Set-DirACL -UserAccount bloggsf -DirectoryToModify \\server\share\dir -ACLToAdd ReadAndExecute -Domain MyDomain
+The above example sets read-only NTFS permissions on the directory \\Server\Share\Dir for the domain user accounts: BloggsF.
+.EXAMPLE
+"BloggsF","GreenD" | Set-DirACL -DirectoryToModify \\server\share\dir -ACLToAdd Modify -Domain MyDomain
+
+The above example sets 'Modify' permissions on the directory \\Server\Share\Dir for the domain user accounts of BloggsF and GreenD.
+.NOTES
+Version: 1.0
+Date: 17 September 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+.LINK
+Check-DirACL
+#>
+function Set-DirACL {
+    [CmdletBinding(SupportsShouldProcess=$true, 
+                  PositionalBinding=$false,                  
+                  ConfirmImpact='Medium')]
+    [OutputType([psobject])]
+    Param
+    (
+        # Param1
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$true,  
+                   Position=0)]              
+        [Alias("SAMAccountName","UserName","Name","user")] 
+        [string[]]
+        $UserAccount,
+
+        # Param2
+        [Parameter(Mandatory=$true,  
+                   Position=0)]
+        [ValidateNotNull()]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $DirectoryToModify,
+
+        # Param3
+        [Parameter(Mandatory=$true)]        
+        [AllowNull()]        
+        [AllowEmptyString()]        
+        [ValidateSet("ReadAndExecute", "Modify", "FullControl")]
+        [string]
+        $ACLToAdd,
+
+        # Param4 If not specified will assume user is BuiltIn\Username
+        [parameter(Mandatory=$false)]                         
+        [String]        
+        $Domain = $env:COMPUTERNAME
+    )
+      
+    BEGIN {}
+  
+    PROCESS {             
+            
+        foreach ($User in $UserAccount) {        
+            
+            #clean up the account name - remove any forward or backslashes 
+            if ($User -like "*\*") {
+                $User = $User.Split("\")[1]
+            }
+
+            if ($User -like "*/*") {
+                $User = $User.Split("/")[1]
+            }
+            $user = $user.Replace("/","")
+            $user = $user.Replace("\","")
+
+            #clean up the domain name - remove any forward or backslashes or periods 
+            if ($domain -like "*.*") {
+                $domain = $domain.Split(".")[0]
+            }
+
+            $domain = $domain.Replace("/","")
+            $domain = $domain.Replace("\","")
+            $domain = $domain.Replace(".","")        
+        
+            #Build fullname in format of domain\username
+            $FullUserName = ($domain + "\" + $User)   
+
+            #Get the current ACL for the directory
+            $ACL = get-acl -Path $DirectoryToModify 
+           
+
+           #Write the requested ACL as it is currently not present.
+            if (!($ACLCorrect)) {
+                try {
+                    write-verbose "Changing permissions on directory: $DirectoryToModify to: $ACLToAdd"
+                    $aclRule = New-Object System.Security.AccessControl.FileSystemAccessRule(($FullUserName), "$ACLToAdd", "ContainerInherit, ObjectInherit", "None", "Allow")                   
+                    $acl.SetAccessRule($aclRule)
+                    Set-Acl $DirectoryToModify $acl -ea Stop -ev x
+                    $ACLSet = $true  
+                } catch {
+                    write-error "Changing permissions on directory: $DirectoryToModify to: $ACLToAdd failed with error: $x"
+                    $ACLSet = $false
+                } #end catch
+            } #end if            
+
+
+              #Create object for output
+              $props = @{
+                        'PermissionsSet' = $ACLSet;
+                        'User' = $FullUserName;
+                        'Permissions' = $ACLToAdd;  
+                        'Directory' = $DirectoryToModify                                                      
+                        }
+               $obj = New-Object -TypeName psobject -Property $props
+
+               $obj 
+
+        } #End ForEach  
+    } # End Process
+
+    END {}
+
+}# End Function
