@@ -12,11 +12,11 @@ This is the account name that you wish to check has permissions.  Do not use any
 .PARAMETER Domain
 If you do not specify a domain, then the user account specified will be assumed to be a local computer account.  If you are checking domain accounts then enter your domain netbios name here.
 .EXAMPLE
-Remediate-DirACL -UserAccount BloggsF -DirectoryToCheck C:\MyFolder -ACLToCheck Modify
+Check-DirACL -UserAccount BloggsF -DirectoryToCheck C:\MyFolder -ACLToCheck Modify
 
 The above example will display the directory being checked, the username, the permissions being checked and if the permissions are already set for that user or not.  In addition, because the domain parameter was not specified, the user account being checked is assumed to exist on the local computer.
 .EXAMPLE
-$results = Remediate-DirACL -UserAccount BloggsF,GreenD,SinatraF -DirectoryToCheck \\server\share\dir -ACLToCheck Modify -Domain MyDomain
+$results = Check-DirACL -UserAccount BloggsF,GreenD,SinatraF -DirectoryToCheck \\server\share\dir -ACLToCheck Modify -Domain MyDomain
 
 foreach ($object in $results) {
     if ($object.permissionsalreadyset) {
@@ -43,7 +43,7 @@ function Check-DirACL {
     [OutputType([psobject])]
     Param
     (
-        # Param3
+        # Param1
         [Parameter(Mandatory=$true, 
                    ValueFromPipeline=$true,
                    ValueFromPipelineByPropertyName=$true,  
@@ -52,7 +52,7 @@ function Check-DirACL {
         [string[]]
         $UserAccount,
 
-        # Param1
+        # Param2
         [Parameter(Mandatory=$true,  
                    Position=0)]
         [ValidateNotNull()]
@@ -60,7 +60,7 @@ function Check-DirACL {
         [String]
         $DirectoryToCheck,
 
-        # Param2
+        # Param3
         [Parameter(Mandatory=$true)]        
         [AllowNull()]        
         [AllowEmptyString()]        
@@ -120,7 +120,7 @@ function Check-DirACL {
               $props = @{
                         'PermissionsAlreadySet' = $ACLCorrect;
                         'User' = $FullUserName;
-                        'Permissions' = $ACLToCheck;  
+                        'PermissionsChecked' = $ACLToCheck;  
                         'Directory' = $DirectoryToCheck                              
                         }
                $obj = New-Object -TypeName psobject -Property $props
