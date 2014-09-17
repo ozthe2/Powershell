@@ -1,0 +1,31 @@
+function Validate-IsEmpty 
+{
+	<#
+		.SYNOPSIS
+			Validates if input is empty.
+	
+		.DESCRIPTION
+			Returns $TRUE if the text is empty, otherwise will return $FALSE
+	
+		.PARAMETER  Text
+			A string
+	
+		.INPUTS
+			System.String
+	
+		.OUTPUTS
+			System.Boolean
+        .NOTES
+            Version: 1.0
+Date: 17 September 2014
+            Created By: OH
+        .LINK
+http://www.fearthemonkey.co.uk
+        .LINK
+            https://github.com/ozthe2/Powershell.git
+	#>
+	[OutputType([Boolean])]
+	param([string]$Text)
+	
+	return [string]::IsNullOrEmpty($Text)
+}
