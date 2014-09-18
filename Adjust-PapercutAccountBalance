@@ -1,0 +1,92 @@
+function Adjust-PapercutAccountBalance {
+	<#
+		.SYNOPSIS
+			Adds or subtracts to the specified users Papercut Print Balance.
+	
+		.DESCRIPTION
+			Adds or subtracts to the specified users Papercut Print Balance.
+	
+		.PARAMETER  PapercutServer
+			Your papercut server eg MyServer
+        .PARAMETER  UserAccount
+			The account name of the user whose balance you wish to adjust.
+        .PARAMETER  Amount
+			The amount by which you wish to adjust the balance by. (Can be pre-fixed with a minus  (-) for subtracting an amount.
+        .PARAMETER  Comment
+			The reason that you have made the balance adjustment.
+		.INPUTS
+			None
+        .EXAMPLE
+            Adjust-PapercutAccountBalance -PapercutServer MyServer -UserAccount GreenD -Amount 1.50 -Comment "Added by Powershell"
+
+            The above example credits 1.50 to the existing balance of the user: GreenD and adds a comment to the Transaction History of "Added by Powershell"
+	    .EXAMPLE
+            Adjust-PapercutAccountBalance -PapercutServer MyServer -UserAccount GreenD -Amount -2.00 -Comment "Added by Powershell"
+
+            The above example debits 2.00 from the existing balance of the user: GreenD and adds a comment to the Transaction History of "Added by Powershell"
+        .NOTES
+            Version: 1.0
+            Date: 18 September 2014
+            Created By: OH
+        .LINK
+            http://www.fearthemonkey.co.uk
+        .LINK
+            https://github.com/ozthe2/Powershell.git
+	#>
+    [CmdletBinding()]    
+    Param
+    (
+        # Param1
+        [Parameter(Mandatory=$true,
+                   ValueFromPipeline=$false,
+                   ValueFromPipelineByPropertyName=$false,  
+                   Position=0)] 
+        [string]
+        $PapercutServer,
+
+        # Param2
+        [parameter(Mandatory=$true)] 
+        [Alias("SAMAccountName","UserName","Name")]                        
+        [String]        
+        $UserAccount,
+
+        # Param3
+        [Parameter(Mandatory=$false)]
+        [ValidateNotNull()]
+        [ValidateNotNullOrEmpty()]
+        [int]
+        $Amount = 1.00,
+
+        # Param4
+        [Parameter(Mandatory=$False)]        
+        [AllowNull()]        
+        [string]
+        $Comment = "Balance adjusted via Powershell"
+
+        
+    )
+      
+    BEGIN {
+        
+        try {
+            $session = New-PSSession -ComputerName $PapercutServer -ea Stop -ev x
+        } catch {
+            Write-output $x
+        }
+
+        write-verbose "Setting current path.."
+        invoke-command -Session $session -ScriptBlock {set-location "C:\Program Files (x86)\Papercut MF\Server\Bin\Win"}
+    
+    
+    } # end begin  
+    PROCESS {        
+        write-verbose "Applying $Amount to the print balance of user: $UserAccount"        
+        invoke-command -Session $session -ScriptBlock {param($Acc,$amt,$Msg)& cmd.exe /c server-command.exe adjust-user-account-balance $acc $amt $Msg} -ArgumentList $UserAccount,$Amount,$Comment -ea Stop -ev x
+    } # End process
+
+    END {
+        #Close the remote session
+        Get-PSSession | Remove-PSSession
+    }
+
+} # end function
