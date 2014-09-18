@@ -30,8 +30,7 @@ https://github.com/ozthe2/Powershell.git
 Check-DirACL
 #>
 function Set-DirACL {
-    [CmdletBinding(SupportsShouldProcess=$true, 
-                  PositionalBinding=$false,                  
+    [CmdletBinding(SupportsShouldProcess=$true,                  
                   ConfirmImpact='Medium')]
     [OutputType([psobject])]
     Param
