@@ -140,5 +140,3 @@ function Check-DirACL {
     END {}
 
 }# End Function
-
-Check-DirACL -UserAccount BloggsF,GreenD,SinatraF -DirectoryToCheck C:\builds -ACLToCheck Modify -Domain chi
