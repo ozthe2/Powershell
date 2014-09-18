@@ -18,3 +18,7 @@ Create-StudentObject
 --------------------
 ** Specific to my workplace **
 
+Adjust-PapercutAccountBalance
+-----------------------------
+Allows you to specify a user account and either add or subtract from the users account balance.
+
