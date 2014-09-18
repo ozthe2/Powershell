@@ -70,7 +70,8 @@ function Set-DirACL {
   
     PROCESS {             
             
-        foreach ($User in $UserAccount) {        
+        foreach ($User in $UserAccount) {   
+            $Continue=$true     
             
             #clean up the account name - remove any forward or backslashes 
             if ($User -like "*\*") {
@@ -108,23 +109,24 @@ function Set-DirACL {
                     Set-Acl $DirectoryToModify $acl -ea Stop -ev x
                     $ACLSet = $true  
                 } catch {
-                    write-error "Changing permissions on directory: $DirectoryToModify to: $ACLToAdd failed with error: $x"
-                    $ACLSet = $false
+                    write-error "Changing permissions on directory: $DirectoryToModify to: $ACLToAdd failed with error: $x"                    
+                    $continue=$false
                 } #end catch
             } #end if            
 
 
-              #Create object for output
-              $props = @{
-                        'PermissionsSet' = $ACLSet;
-                        'User' = $FullUserName;
-                        'Permissions' = $ACLToAdd;  
-                        'Directory' = $DirectoryToModify                                                      
-                        }
-               $obj = New-Object -TypeName psobject -Property $props
+              if ($continue) {  
+                  #Create object for output
+                  $props = @{
+                            'PermissionsSet' = $ACLSet;
+                            'User' = $FullUserName;
+                            'Permissions' = $ACLToAdd;  
+                            'Directory' = $DirectoryToModify                                                      
+                            }
+                   $obj = New-Object -TypeName psobject -Property $props
 
-               $obj 
-
+                   $obj 
+               }
         } #End ForEach  
     } # End Process
 
