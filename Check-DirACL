@@ -77,7 +77,8 @@ function Check-DirACL {
   
     PROCESS {             
             
-        foreach ($User in $UserAccount) {        
+        foreach ($User in $UserAccount) { 
+            $Continue=$true       
             
             #clean up the account name - remove any forward or backslashes 
             if ($User -like "*\*") {
@@ -103,7 +104,12 @@ function Check-DirACL {
             $FullUserName = ($domain + "\" + $User)   
 
             #Get the current ACL for the directory
-            $ACL = get-acl -Path $DirectoryToCheck 
+            try {
+                $ACL = get-acl -Path $DirectoryToCheck -ea Stop -ev x
+            } catch {
+                $continue = $false
+                Write-Output $x
+            }
             
             $ACLCorrect = $false                      
 
@@ -116,15 +122,17 @@ function Check-DirACL {
             } # End foreach
 
               #Create object for output
-              $props = @{
-                        'PermissionsAlreadySet' = $ACLCorrect;
-                        'User' = $FullUserName;
-                        'PermissionsChecked' = $ACLToCheck;  
-                        'Directory' = $DirectoryToCheck                              
-                        }
-               $obj = New-Object -TypeName psobject -Property $props
+              if ($continue) {               
+                  $props = @{
+                            'PermissionsAlreadySet' = $ACLCorrect;
+                            'User' = $FullUserName;
+                            'PermissionsChecked' = $ACLToCheck;  
+                            'Directory' = $DirectoryToCheck                              
+                            }
+                   $obj = New-Object -TypeName psobject -Property $props
 
-               $obj 
+                   $obj 
+               }
 
         } #End ForEach  
     } # End Process
@@ -132,3 +140,5 @@ function Check-DirACL {
     END {}
 
 }# End Function
+
+Check-DirACL -UserAccount BloggsF,GreenD,SinatraF -DirectoryToCheck C:\builds -ACLToCheck Modify -Domain chi
