@@ -1,0 +1,64 @@
+<#
+.Synopsis
+A function to remove spaces and symbols from the text passed in for use with usernames.
+This will also replace diacritics with their standard form for legacy (non-UTF) applications.
+.DESCRIPTION
+Checks to see if a user account requires a £1.00 print credit top-up.  Returns $True if top-up required or $false if not required.
+.PARAMETER Text
+The text to sanitize.
+.EXAMPLE
+Convert-ToFriendlyName -Text "S'urn@am\e!!
+
+Surname
+
+The above command will stripout all of the illegal characters leaving the result of: Surname
+
+.NOTES
+Version: 1.0
+Date: 22 September 2014
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+
+Function Convert-ToFriendlyName
+{
+
+[CmdletBinding()] 
+    Param
+    (
+        # Param1
+        [Parameter(Mandatory=$true,                   
+                   Position=0)]                      
+        [string]
+        $Text        
+    )
+
+  if ($text -eq $null) 
+  {
+    return [string]::Empty
+  }
+
+  #Create an array of chars to remove for use in the regex
+  $specialchars = '!', '"', '£', '$', '%', '&', '^', '*', '(', ')', '@', '=', '+', '¬', '`', '\', '<', '>', ',', '.', '?', '/', ':', ';', '#', '~', "'", '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', ' '
+  $remspecchars = [string]::join('|', ($specialchars | % {[regex]::escape($_)}))
+  
+  #Remove unwanted characters
+  $stext = $text -replace $remspecchars, ""
+  $snormal = $stext.Normalize("FormD")
+  $ftext = $null
+
+  #Convert diacritics to standard form.
+  foreach ($c in [Char[]]$snormal)
+  {
+    $uCategory = [System.Globalization.CharUnicodeInfo]::GetUnicodeCategory($c)
+    
+    if ($uCategory -ne "NonSpacingMark")
+    {
+      $ftext += $c
+    }
+  }
+
+  return $ftext
+}
