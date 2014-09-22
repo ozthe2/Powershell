@@ -86,13 +86,33 @@ Function Create-StudentObject {
     BEGIN {}
     
     PROCESS {
+        
+        #1.
+        # Check that DOB is present, if not, set to eight zero's.  This is because we use the DOB as the initial logon password so it must be present.
+        write-verbose "Checking that the Date of Birth is present for student $Firstname $surname..."
+        #True = Missing DOB, $False = DOB present
+        if (Validate-IsEmpty -Text $dob){
+            Write-Warning "The Date of Birth field is missing for $Firstname $surname so will now populate it with eight zeros."            
+            $dob = '00000000'
+        } else {
+            write-verbose "Date of Birth Present."
+        }
 
-        #Write-output "$dob $Firstname $Surname $id"
+        #2.
+        #Ensure that there are no strange characters in the surname
+        Write-verbose "Stripping out illegal characters"
+        $Surname = Convert-ToFriendlyName -Text $surname
 
-        write-verbose "Checking that the Date of Birth is present..."
-        $Result = Validate-IsEmpty -Text $dob
+        #3.
+        #Create the student username made up of the first three chars of the surname followed by the student number
+        write-verbose "Creating Student username"
+        $Username = Create-StudentUserName -ID $ID -Surname $Surname
 
-        $result
+       #4.
+
+
+
+
 
 
         
@@ -100,7 +120,19 @@ Function Create-StudentObject {
 
 
 
+            
+            
 
+
+      
+
+
+        
+
+
+
+
+        write-verbose "`n"
     } # End process
 
 
@@ -111,6 +143,6 @@ Function Create-StudentObject {
 
 # --- TESTING ---
 
-Import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | select -first 12 | Create-StudentObject
+Import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | select -first 12 | Create-StudentObject -Verbose
 
 
