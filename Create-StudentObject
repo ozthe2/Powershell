@@ -1,0 +1,148 @@
+<#
+.Synopsis
+Creates new students in A.D
+.DESCRIPTION
+This is the 'Master' cmdlet.  You can also pipe in a csv as long as the CSV headers match the parameter names.
+Creates new students in A.D, assigns Papercut credit, adds to correct groups, configures AD. Attribs. creates HomeDir etc etc
+.PARAMETER Param1
+Text...
+.PARAMETER Param2
+Text...
+.PARAMETER Param3
+Text...
+.PARAMETER Param4
+Text...
+.PARAMETER Param5
+Text...
+.PARAMETER Param6
+Text...
+.PARAMETER Param7
+Text...
+.PARAMETER Param8
+Text...
+.PARAMETER Param9
+Text...
+.PARAMETER Param10
+Text...
+.PARAMETER Param11
+Text...
+.EXAMPLE
+Import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Create-StudentObject
+.NOTES
+Version: 1.0
+Date: 17 September 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+
+
+Function Create-StudentObject {
+
+        [CmdletBinding()]
+
+        Param(
+            #Param1
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [Alias("StudentID","StudentNumber","StudentNo","EnrolmentID","EnrolmentNumber","EnrolmentNo")] 
+            [string]$ID,
+            #Param2
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [Alias("ChristianName","Forename","GivenName","PersonalName")]
+            [string]$Firstname,
+            #Param3
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [Alias("LastName","FamilyName")]
+            [string]$Surname,
+            #Param4
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [Alias("DateOfBirth")]
+            [string]$DOB,
+            #Param5
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [string]$CourseCode,
+            #Param6
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [string]$CourseDescription,
+            #Param7
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [string]$UnknownField1,
+            #Param8
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [string]$CourseStart,
+            #Param9
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [string]$CourseEnd,
+            #Param10
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [string]$UnknownField2,
+            #Param11
+            [Parameter(Mandatory=$False,ValueFromPipelineByPropertyName=$true)]
+            [string]$UnknownField3
+       )
+
+    BEGIN {}
+    
+    PROCESS {
+        
+        #1.
+        # Check that DOB is present, if not, set to eight zero's.
+        write-verbose "Checking that the Date of Birth is present for student $Firstname $surname..."
+        #True = Missing DOB, $False = DOB present
+        if (Validate-IsEmpty -Text $dob){
+            Write-Warning "The Date of Birth field is missing for $Firstname $surname so will now populate it with eight zeros."            
+            $dob = '00000000'
+        } else {
+            write-verbose "Date of Birth Present."
+        }
+
+        #2.
+        #Ensure that there are no strange characters in the surname
+        Write-verbose "Stripping out illegal characters"
+        $Surname = Convert-ToFriendlyName -Text $surname
+
+        #3.
+        #Create the student username made up of the first three chars of the surname followed by the student number
+        write-verbose "Creating Student username"
+        $Username = Create-StudentUserName -ID $ID -Surname $Surname
+
+       #4.
+
+
+
+
+
+
+        
+
+
+
+
+            
+            
+
+
+      
+
+
+        
+
+
+
+
+        write-verbose "`n"
+    } # End process
+
+
+    END {}
+} # End Function
+
+
+
+# --- TESTING ---
+
+Import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | select -first 12 | Create-StudentObject -Verbose
+
+
