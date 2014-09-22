@@ -1,0 +1,54 @@
+<#
+.Synopsis
+Creates a student username in the format required.
+.DESCRIPTION
+Creates a student username using the first three characters of the surname followed by the student number
+.PARAMETER ID
+The 8 digit unique number assigned to the student.
+.PARAMETER Surname
+The surname of the student
+.EXAMPLE
+Create-StudentUserName -ID 12345678 -Surname Bloggs
+
+BLO12345678
+.NOTES
+Version: 1.0
+Date: 19 September 2014
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+
+Function Create-StudentUserName {
+ [CmdletBinding()]
+ [OutputType([bool])]
+    Param
+    (
+        # Param1
+        [Parameter(Mandatory=$true,                   
+                   Position=0)]                      
+        [string]
+        $ID,
+        
+        # Param2
+        [Parameter (Mandatory=$true)]
+        [String]
+        $Surname
+    )
+
+    $username = $null    
+
+    if ($surname.Length -lt 3) {    
+        if ($surname -is [char]) {
+            $surname = $surname.ToString()
+        }
+        $username = ($surname.SubString(0,($surname.Length)).ToUpper() + $id)
+    } else {
+        $username = ($surname.SubString(0,3).ToUpper() + $id)
+    }
+
+    return $username
+
+
+} # End Function
