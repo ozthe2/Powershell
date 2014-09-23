@@ -1,0 +1,62 @@
+<#
+.Synopsis
+Reads a .csv file containing user data.
+.DESCRIPTION
+Reads a .csv file containing user data and creates each user as an object for output.  The csv *must* containg the headers (or the -headser parameter) as shown in the examples.
+.PARAMETER CSVData
+Text...
+.EXAMPLE
+import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | select -first 12 
+
+The above example reads in a csv file called 'output.csv and uses the csv headers as shown by the -Header parameter.  The first 12 rows are selected and output as objects.
+.NOTES
+Version: 1.0
+Date: 17 September 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+.LINK
+Create-StudentObject
+#>
+
+Function Import-UserCSV {
+
+    [CmdletBinding()]
+    [OutputType([PSObject])]
+    Param(              
+        [PARAMETER(Mandatory=$TRUE,
+        ValueFromPipeline=$TRUE)]        
+        [psobject[]]$CSVData
+    )
+
+
+    BEGIN {}
+
+    PROCESS {
+        
+        $props = [ordered]@{'ID' = $CSVData.ID
+                            'FirstName' = $CSVData.Firstname;
+                            'Surname' = $CSVData.Surname;
+                            'DOB' = $CSVData.DOB;
+                            'CourseCode' = $CSVData.CourseCode;
+                            'CourseDescription' = $CSVData.CourseDescription;
+                            'UnknownField1' = $CSVData.UnknownField1;
+                            'CourseStart' = $CSVData.CourseStart;
+                            'CourseEnd' = $CSVData.CourseEnd;
+                            'UnknownField2' = $CSVData.UnknownField2;
+                            'UnknownField3' = $CSVData.UnknownField3
+                             }# end props
+
+                             
+    
+        $obj=New-Object -typename psobject -Property $props
+    
+        $obj 
+    
+    } # End Process
+
+    END {}
+
+}# End Function
