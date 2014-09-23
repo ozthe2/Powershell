@@ -89,19 +89,19 @@ Function Create-StudentObject {
         
         #1.
         # Check that DOB is present, if not, set to eight zero's.
-        write-verbose "Checking that the Date of Birth is present for student $Firstname $surname..."
+        write-verbose "Checking that the Date of Birth is present for student $Firstname $Surname..."
         #True = Missing DOB, $False = DOB present
-        if (Validate-IsEmpty -Text $dob){
-            Write-Warning "The Date of Birth field is missing for $Firstname $surname so will now populate it with eight zeros."            
-            $dob = '00000000'
+        if (Validate-IsEmpty -Text $DOB){
+            Write-Warning "The Date of Birth field is missing for $Firstname $Surname so will now populate it with eight zeros."            
+            $DOB = '00000000'
         } else {
             write-verbose "Date of Birth Present."
         }
 
         #2.
         #Ensure that there are no strange characters in the surname
-        Write-verbose "Stripping out illegal characters"
-        $Surname = Convert-ToFriendlyName -Text $surname
+        Write-verbose "Stripping out illegal characters from surname."
+        $Surname = Convert-ToFriendlyName -Text $Surname
 
         #3.
         #Create the student username made up of the first three chars of the surname followed by the student number
@@ -109,30 +109,20 @@ Function Create-StudentObject {
         $Username = Create-StudentUserName -ID $ID -Surname $Surname
 
        #4.
+       #See if this user already exists in Active Directory.  If they exist, then the $ADUser var contains a selection of 
+       #properties from the Active Directory user account.
+       $ADUser = Search-UserInAD -ID $ID
 
-
-
-
-
-
-        
-
-
-
-
-            
-            
-
-
-      
-
-
-        
-
-
-
-
-        write-verbose "`n"
+       if($ADUser.employeeNumber -eq $NULL) {
+            Write-warning "The user: $Username cannot be found in Active Directory."
+            Write-verbose "Creating new user account..."
+            # Do something
+        } else {
+            Write-verbose "Processing next stage..."
+            # Do something...            
+        }
+       
+       Write-verbose "`n"
     } # End process
 
 
