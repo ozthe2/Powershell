@@ -1,0 +1,96 @@
+<#
+.SYNOPSIS
+Searches for a user in A.D.
+.DESCRIPTION
+Searches for a user in Active Directory and returns an object containing selected properties of the A.D user object.
+.PARAMETER ID
+A unique number assigned to the person that is stored in the EmployeeID A.D attribute.
+.PARAMETER Searchbase
+The Organisational Unit (OU) in Active Directory that contains the user objects that you wish to search.  Whilst this parameter is not a requirement, there is a performance gain if you specify it.
+.EXAMPLE
+Search-UserInAD -ID 99990001
+Searches Active Directory for a user with the Employee Numberof: 99990001.  If not found, returns an object with all properties containing $NULL, otherwise returns an object with various properties and their values.
+.EXAMPLE
+$User = Search-UserInAD -ID 99990005 -Searchbase "OU=OurUsers,OU=Office,DC=MyDomain,DC=Pri"
+
+if ($User.EmployeeNumber -eq $null ) {
+    Write-Warning "No user can be found!"
+} else {
+    $User
+}
+
+The above example will write the warning "No user can be found!" if the EmployeeID property is $NULL, otherwise it displays the objects properties and values.
+In addition, it is specifically only searching in Active Directory in the container: "OU=OurUsers,OU=Office,DC=MyDomain,DC=Pri"
+.NOTES
+Version: 1.0
+Created By: OH
+Date: 19 September 2014
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+
+Function Search-UserInAD {
+ [CmdletBinding()]
+ [OutputType([psobject])]
+    Param
+    (
+        # Param1
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$false,  
+                   Position=0)]              
+        [Alias("SAMAccountName","UserAccount","Name","user")] 
+        [string[]]
+        $ID,
+
+        [Parameter(Mandatory=$false)]                      
+        [string]
+        $Searchbase
+    )
+
+
+    BEGIN {}
+
+
+    PROCESS {
+        foreach ($UserID in $ID) {
+            $Continue = $true
+            try {
+                if ($searchbase) {
+                    $User = Get-ADUser -filter {EmployeeNumber -eq $UserID} -Properties * -SearchBase $SearchBase -searchscope OneLevel  | select AccountExpirationDate,EmployeeNumber,employeeType,Enabled,GivenName,HomeDirectory,HomeDrive,Surname,SAMAccountName,MemberOf,PhysicalOfficeDeliveryName -ea Stop -ev x
+                } else {
+                    $User = Get-ADUser -filter {EmployeeNumber -eq $UserID} -Properties * | select AccountExpirationDate,EmployeeNumber,employeeType,Enabled,GivenName,HomeDirectory,HomeDrive,Surname,SAMAccountName,MemberOf,PhysicalOfficeDeliveryName -ea Stop -ev x
+                }
+
+            } catch {
+                $continue = $false
+                # Write-log file here
+            }
+
+            if ($Continue) {
+                #Create object for output
+                $props = @{
+                        'AccountExpirationDate' = $user.AccountExpirationDate;
+                        'EmployeeNumber' = $user.EmployeeNumber;
+                        'employeeType' = $user.employeeType;  
+                        'Enabled' = $user.Enabled;
+                        'GivenName' = $User.GivenName;
+                        'HomeDirectory' = $user.HomeDirectory; 
+                        'HomeDrive' = $user.HomeDrive;
+                        'Surname' = $user.Surname;
+                        'SAMAccountName' = $user.SAMAccountName;
+                        'PhysicalOfficeDeliveryName' = $user.PhysicalDeliveryOffice;
+                        'MemberOf' = $user.MemberOf
+                          }
+                $obj = New-Object -TypeName psobject -Property $props
+
+                $obj 
+            } # end if
+        } # End Foreach
+    } # End Process
+
+    END {}
+
+} # End function
