@@ -47,7 +47,7 @@ Function Create-StudentObject {
        
             #1.
             # Check that DOB is present, if not, set to eight zero's.
-            write-output "Checking that the Date of Birth is present for student: $($csvuser.firstname) $($csvuser.Surname)"
+            write-Verbose "Checking that the Date of Birth is present for student: $($csvuser.firstname) $($csvuser.Surname)"
             #True = Missing DOB, $False = DOB present
             if (Validate-IsEmpty -Text $csvUser.dob ){
                 Write-Warning "The Date of Birth field is missing for $($csvuser.Firstname) $($csvuser.Surname) so will now populate it with eight zeros."            
@@ -67,7 +67,7 @@ Function Create-StudentObject {
             $Username = Create-StudentUserName -ID $csvuser.ID -Surname $csvuser.Surname
 
             #4.
-            #Check to ensure that the ID number falls within the accepted range for our Organisation       
+            #Check to ensure that the ID number falls within the accepted range for our organisation       
             if(!(Validate-ID -ID $csvuser.ID)) {
                 write-warning "I.D number is not valid."
                 write-warning "Skipping processing of this user: $username"                
@@ -106,7 +106,7 @@ Function Create-StudentObject {
 
 # --- TESTING ---
 
-import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | select -first 12 | Import-UserCSV | Create-StudentObject -verbose
+import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | select -first 15 | Import-UserCSV | Create-StudentObject -verbose
 
 
 #help Create-StudentObject -full
