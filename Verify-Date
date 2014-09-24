@@ -1,0 +1,61 @@
+<#
+.Synopsis
+Ensures that the date is in U.K format.
+.DESCRIPTION
+Ensures that the date is in U.K format.  If not, it checks to see if the date is in U.S format and attempts to convert to U.K
+The date is returned in UK format;If conversion fails then $NULL is returned.
+.PARAMETER Date
+The date to be checked.
+.EXAMPLE
+verify-date -date "30/10/2014"
+30 October 2014 00:00:00
+
+The above example is a U.K date format and no conversion is required.  It returns the long date.
+.EXAMPLE
+verify-date -date "10/30/2014"
+30 October 2014 00:00:00
+
+The above example converts a date from U.S format to U.K long date.
+
+.NOTES
+Version: 1.0
+Date: 24 September 2014
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+
+Function Verify-Date {
+        [CmdletBinding()]
+        
+        Param(              
+            [PARAMETER(Mandatory=$True,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)]        
+            [String]
+            $Date
+        )
+      
+    $NewDate = $Null
+
+    Try { 
+        Write-verbose "Verifying date is in appropriate U.K format..."     
+        $NewDate = (Get-Date $Date -ea Stop)  
+        Write-Verbose "Date OK"
+    } catch {                  
+        Write-Warning "Error in Date conversion, trying US date format..."    
+        if ($Date.Contains("-")) {        
+          $NewDate = ([DateTime]::ParseExact($Date, "MM-dd-yyyy", $Null))
+          Write-verbose "Successfully converted date from U.S to U.K"
+        } elseif ($Date.Contains("/")) {
+            $NewDate = ([DateTime]::ParseExact($Date, "MM/dd/yyyy", $Null))
+            Write-verbose "Successfully converted date from U.S to U.K"
+        } else {
+            Write-Warning "Conversion fallbacks failed."          
+        }
+    } # End Catch    
+
+    return $NewDate
+      
+} # End Function
