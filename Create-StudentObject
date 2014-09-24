@@ -46,33 +46,33 @@ Function Create-StudentObject {
             $Continue = $true  
        
             #1.
+            #Check to ensure that the ID number falls within the accepted range for our organisation       
+            if(!(Validate-ID -ID $csvUser.ID)) {
+                write-warning "I.D number is not valid."
+                write-warning "Skipping processing of this user: $Username"                
+                break;
+            }
+            
+            #2.
             # Check that DOB is present, if not, set to eight zero's.
-            write-Verbose "Checking that the Date of Birth is present for student: $($csvuser.firstname) $($csvuser.Surname)"
+            write-Verbose "Checking that the Date of Birth is present for student: $($csvUser.firstname) $($csvUser.Surname)"
             #True = Missing DOB, $False = DOB present
-            if (Validate-IsEmpty -Text $csvUser.dob ){
-                Write-Warning "The Date of Birth field is missing for $($csvuser.Firstname) $($csvuser.Surname) so will now populate it with eight zeros."            
-                $csvuser.DOB = '00000000'
+            if (Validate-IsEmpty -Text $csvUser.dob ) {
+                Write-Warning "The Date of Birth field is missing for $($csvUser.Firstname) $($csvUser.Surname) so will now populate it with eight zeros."            
+                $csvUser.DOB = '00000000'
             } else {
                 write-verbose "Date of Birth is present."
             }
 
-            #2.
+            #3.
             #Ensure that there are no strange characters in the surname
             Write-verbose "Stripping out illegal characters from surname."
-            $csvuser.Surname = Convert-ToFriendlyName -Text $csvUser.Surname
-
-            #3.
-            #Create the student username made up of the first three chars of the surname followed by the student number
-            write-verbose "Creating Student username"
-            $Username = Create-StudentUserName -ID $csvuser.ID -Surname $csvuser.Surname
+            $csvUser.Surname = Convert-ToFriendlyName -Text $csvUser.Surname
 
             #4.
-            #Check to ensure that the ID number falls within the accepted range for our organisation       
-            if(!(Validate-ID -ID $csvuser.ID)) {
-                write-warning "I.D number is not valid."
-                write-warning "Skipping processing of this user: $username"                
-                break;
-            }        
+            #Create the student username made up of the first three chars of the surname followed by the student number
+            write-verbose "Creating Student username"
+            $Username = Create-StudentUserName -ID $csvUser.ID -Surname $csvUser.Surname              
        
             #5.
             #See if this user already exists in Active Directory.  If they exist, then the $ADUser var contains an object that has a selection of 
@@ -88,10 +88,8 @@ Function Create-StudentObject {
                 # Do something...(next stage)            
             }
        
-       #>
         } # End Foreach       
         Write-verbose "`n"
-
 
 
 
