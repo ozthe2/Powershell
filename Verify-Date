@@ -44,7 +44,7 @@ Function Verify-Date {
         $NewDate = (Get-Date $Date -ea Stop)  
         Write-Verbose "Date OK"
     } catch {                  
-        Write-Warning "Error in Date conversion, trying US date format..."    
+        Write-Warning "Error in Date conversion, trying U.S date format..."    
         if ($Date.Contains("-")) {        
           $NewDate = ([DateTime]::ParseExact($Date, "MM-dd-yyyy", $Null))
           Write-verbose "Successfully converted date from U.S to U.K"
