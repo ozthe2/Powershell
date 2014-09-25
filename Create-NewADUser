@@ -9,26 +9,28 @@ function Create-NewADUser {
         [psobject[]]$UserObject
     )
 
-    $Props=@{
-    AccountExpirationDate = $UserObject.AccountExpirationDate
-    AccountPassword =  $UserObject.AccountPassword
-    ChangePasswordAtLogon = $True  
-    DisplayName = $UserObject.DisplayName 
-    EmailAddress = $UserObject.EmailAddress
-    EmployeeNumber = $UserObject.ID 
-    GivenName = $UserObject.Firstname 
-    HomeDirectory = $UserObject.HomeDirectory 
-    HomeDrive ="G:" 
-    Name = $UserObject.Username 
-    Path = $UserObject.StudentBase     
-    SamAccountName = $UserObject.Username  
-    Surname = $UserObject.Surname 
-    UserPrincipalName = $UserObject.UserPrincipalName
+    $Parms=@{
+    AccountExpirationDate = $UserObject.AccountExpirationDate;
+    AccountPassword =  $UserObject.AccountPassword;
+    ChangePasswordAtLogon = $True;  
+    DisplayName = $UserObject.DisplayName; 
+    EmailAddress = $UserObject.EmailAddress;
+    EmployeeNumber = $UserObject.ID; 
+    GivenName = $UserObject.Firstname; 
+    HomeDirectory = $UserObject.HomeDirectory; 
+    HomeDrive ="G:"; 
+    Name = $UserObject.Username; 
+    Path = $UserObject.Path;     
+    SamAccountName = $UserObject.Username;  
+    Surname = $UserObject.Surname; 
+    UserPrincipalName = $UserObject.UserPrincipalName;
     OtherAttributes = @{'EmployeeType'="student"}     
     }
 
-    write-output "***"
-    write-output $UserObject.AccountExpirationDate
-    write-output "***"
+    try {
+        new-aduser @Parms -WhatIf -ea Stop 
+    } catch {
+        write $x
+    }
 
 } # End Function
