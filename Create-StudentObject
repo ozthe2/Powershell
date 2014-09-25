@@ -47,9 +47,9 @@ Function Create-StudentObject {
        
             #1.
             #Check to ensure that the ID number falls within the accepted range for our organisation       
-            if(!(Validate-ID -ID $csvUser.ID)) {
-                write-warning "I.D number is not valid."
-                write-warning "Skipping processing of this user: $Username"                
+            if(!(Validate-ID -ID $csvUser.ID)) {                
+                write-warning "Skipping processing of this user: $Username."  
+                Write-warning "Reason: I.D number is not valid."               
                 break;
             }
             
@@ -58,23 +58,35 @@ Function Create-StudentObject {
             write-Verbose "Checking that the Date of Birth is present for student: $($csvUser.firstname) $($csvUser.Surname)"
             #True = Missing DOB, $False = DOB present
             if (Validate-IsEmpty -Text $csvUser.dob ) {
-                Write-Warning "The Date of Birth field is missing for $($csvUser.Firstname) $($csvUser.Surname) so will now populate it with eight zeros."            
-                $csvUser.DOB = '00000000'
+                Write-Warning "The Date of Birth field is missing for $($csvUser.Firstname) $($csvUser.Surname)...populating with default date of: 16/06/1666"            
+                $csvUser.DOB = '16/06/1666'
             } else {
                 write-verbose "Date of Birth is present."
             }
-
+            
             #3.
+            #Validate Date of Birth
+            #Ensures that the DOB is in UK format.
+            $csvUser.dob = Verify-Date -Date $csvUser.dob
+            if ($csvuser.dob -eq $NULL) {
+                write-warning "Skipping processing of this user: $Username."
+                Write-warning "Reason: Date of Birth date validation failed." 
+                break;
+            }
+
+            Write-output $csvUser.dob
+
+            #4.
             #Ensure that there are no strange characters in the surname
             Write-verbose "Stripping out illegal characters from surname."
             $csvUser.Surname = Convert-ToFriendlyName -Text $csvUser.Surname
 
-            #4.
+            #5.
             #Create the student username made up of the first three chars of the surname followed by the student number
             write-verbose "Creating Student username"
             $Username = Create-StudentUserName -ID $csvUser.ID -Surname $csvUser.Surname              
        
-            #5.
+            #6.
             #See if this user already exists in Active Directory.  If they exist, then the $ADUser var contains an object that has a selection of 
             #properties from the Active Directory user account.  (Use $ADUser | GM to see properties returned.)
             $ADUser = Search-UserInAD -ID $csvUser.ID
