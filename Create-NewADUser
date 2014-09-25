@@ -1,7 +1,7 @@
 function Create-NewADUser {
 
     [CmdletBinding()]
-        
+    [OutputType([bool])]    
     Param(              
         [PARAMETER(Mandatory=$True,
         ValueFromPipeline=$True,
@@ -10,27 +10,31 @@ function Create-NewADUser {
     )
 
     $Parms=@{
-    AccountExpirationDate = $UserObject.AccountExpirationDate;
-    AccountPassword =  $UserObject.AccountPassword;
-    ChangePasswordAtLogon = $True;  
-    DisplayName = $UserObject.DisplayName; 
-    EmailAddress = $UserObject.EmailAddress;
-    EmployeeNumber = $UserObject.ID; 
-    GivenName = $UserObject.Firstname; 
-    HomeDirectory = $UserObject.HomeDirectory; 
-    HomeDrive ="G:"; 
-    Name = $UserObject.Username; 
-    Path = $UserObject.Path;     
-    SamAccountName = $UserObject.Username;  
-    Surname = $UserObject.Surname; 
-    UserPrincipalName = $UserObject.UserPrincipalName;
-    OtherAttributes = @{'EmployeeType'="student"}     
+        AccountExpirationDate = $UserObject.AccountExpirationDate;
+        AccountPassword =  $UserObject.AccountPassword;
+        ChangePasswordAtLogon = $True;  
+        DisplayName = $UserObject.DisplayName; 
+        EmailAddress = $UserObject.EmailAddress;
+        EmployeeNumber = $UserObject.ID; 
+        GivenName = $UserObject.Firstname; 
+        HomeDirectory = $UserObject.HomeDirectory; 
+        HomeDrive ="G:"; 
+        Name = $UserObject.Username; 
+        Path = $UserObject.Path;     
+        SamAccountName = $UserObject.Username;  
+        Surname = $UserObject.Surname; 
+        UserPrincipalName = $UserObject.UserPrincipalName;
+        OtherAttributes = @{'EmployeeType'="student"}     
     }
 
     try {
-        new-aduser @Parms -WhatIf -ea Stop 
+        new-aduser @Parms -WhatIf -ea Stop -ev x                
+        #User created so return $True
+        return $True
     } catch {
-        write $x
+        write-error $x
+        #There was an error...
+        Return $false
     }
 
 } # End Function
