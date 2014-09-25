@@ -30,7 +30,20 @@ Function Create-StudentObject {
             [PARAMETER(Mandatory=$True,
             ValueFromPipeline=$True,
             ValueFromPipelineByPropertyName=$True)]        
-            [psobject[]]$CSVUserObject
+            [psobject[]]$CSVUserObject,
+
+            #Path to root home dir location eg \\MyServer\Share\HomeDirs
+            [PARAMETER(Mandatory=$False)]
+            [String]
+            $RootHomeDirLocation = "\\Chidata\ClassDocs\Students",
+
+            [PARAMETER(Mandatory=$False)]
+            [String]
+            $MailDomain = "@wingtip.pri",
+
+            [PARAMETER(Mandatory=$False)]
+            [String]
+            $Path = "OU=Current,OU=Users,OU=Main,DC=Wingtip,DC=pri"
         )
 
     BEGIN {
@@ -48,14 +61,14 @@ Function Create-StudentObject {
             #1.
             #Check to ensure that the ID number falls within the accepted range for our organisation       
             if(!(Validate-ID -ID $csvUser.ID)) {                
-                write-warning "Skipping processing of this user: $Username."  
+                write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)"  
                 Write-warning "Reason: I.D number is not valid."               
                 break;
             }
             
             #2.
-            # Check that DOB is present, if not, set to eight zero's.
-            write-Verbose "Checking that the Date of Birth is present for student: $($csvUser.firstname) $($csvUser.Surname)"
+            # Check that DOB is present, if not, set to a specified valid DOB so that user processing can continue.
+            write-Verbose "Checking that the Date of Birth is present for user: $($csvUser.firstname) $($csvUser.Surname)..."
             #True = Missing DOB, $False = DOB present
             if (Validate-IsEmpty -Text $csvUser.dob ) {
                 Write-Warning "The Date of Birth field is missing for $($csvUser.Firstname) $($csvUser.Surname)...populating with default date of: 16/06/1666"            
@@ -69,32 +82,45 @@ Function Create-StudentObject {
             #Ensures that the DOB is in UK format.
             $csvUser.dob = Verify-Date -Date $csvUser.dob
             if ($csvuser.dob -eq $NULL) {
-                write-warning "Skipping processing of this user: $Username."
+                write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
                 Write-warning "Reason: Date of Birth date validation failed." 
                 break;
-            }
-
-            Write-output $csvUser.dob
-
+            }      
+            
             #4.
             #Ensure that there are no strange characters in the surname
-            Write-verbose "Stripping out illegal characters from surname."
+            Write-verbose "Stripping out illegal characters from surname..."
             $csvUser.Surname = Convert-ToFriendlyName -Text $csvUser.Surname
+            Write-verbose "Done."
 
             #5.
             #Create the student username made up of the first three chars of the surname followed by the student number
-            write-verbose "Creating Student username"
-            $Username = Create-StudentUserName -ID $csvUser.ID -Surname $csvUser.Surname              
-       
+            write-verbose "Creating Student username..."
+            $Username = Create-StudentUserName -ID $csvUser.ID -Surname $csvUser.Surname
+            Write-verbose "Done.  Username is: $username" 
+            #Make the username a property of the current object
+            $csvuser | add-member -NotePropertyMembers @{"Username" =$Username}
+
             #6.
+            #Add other essential properties to the current object as this object will be passed to another function that requires them.
+            $csvuser | add-member -NotePropertyMembers @{"HomeDirectory" = ($RootHomeDirLocation + "\" + $username)}
+            $csvuser | add-member -NotePropertyMembers @{"EmailAddress" = ($csvuser.username + $MailDomain)}
+            $csvuser | add-member -NotePropertyMembers @{"Path" = $Path}
+            $csvuser | add-member -NotePropertyMembers @{"AccountExpirationDate" = (Get-Date ($csvUser.CourseEnd)).AddDays(10)}
+            $csvuser | add-member -NotePropertyMembers @{"AccountPassword" = (ConvertTo-SecureString (get-date ($csvUser.dob) -format "ddMMyyyy") -AsPlainText -force)}
+            $csvuser | add-member -NotePropertyMembers @{"DisplayName" = ($CSVUser.Surname + ", " + $CSVUser.Firstname + " (" + $CSVUser.id + ")")}
+            $csvuser | add-member -NotePropertyMembers @{"UserPrincipalName" = ($csvuser.username + $MailDomain)}                         
+       
+            #7.
             #See if this user already exists in Active Directory.  If they exist, then the $ADUser var contains an object that has a selection of 
             #properties from the Active Directory user account.  (Use $ADUser | GM to see properties returned.)
             $ADUser = Search-UserInAD -ID $csvUser.ID
 
-            if($ADUser.employeeNumber -eq $NULL) {
-                Write-warning "The user: $Username cannot be found in Active Directory."
+            if($ADUser.SamAccountName -eq $NULL) {
+                Write-warning "The user: $($csvuser.Username) cannot be found in Active Directory."
                 Write-verbose "Creating new user account..."
-                # Do something (next stage)
+                # Create a new user in Active Directory
+                Create-NewADUser -UserObject $csvuser
             } else {
                 Write-verbose "Processing next stage..."
                 # Do something...(next stage)            
@@ -120,3 +146,7 @@ import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","
 
 
 #help Create-StudentObject -full
+
+
+#To Do:
+#Include logging (write-Log)
