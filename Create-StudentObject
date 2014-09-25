@@ -43,7 +43,7 @@ Function Create-StudentObject {
 
             [PARAMETER(Mandatory=$False)]
             [String]
-            $Path = "OU=Current,OU=Users,OU=Main,DC=Wingtip,DC=pri"
+            $Path = "OU=Users,OU=Main,DC=Wingtip,DC=Pri"
         )
 
     BEGIN {
