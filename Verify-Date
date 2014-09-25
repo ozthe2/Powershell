@@ -39,6 +39,9 @@ Function Verify-Date {
       
     $NewDate = $Null
 
+    #Backslashes produce an error that is outside of the scope of our try\catch so lets fix it here...
+    $date = $date.Replace("\","/")
+
     Try { 
         Write-verbose "Verifying date is in appropriate U.K format..."     
         $NewDate = (Get-Date $Date -ea Stop)  
