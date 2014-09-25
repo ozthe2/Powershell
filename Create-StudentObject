@@ -35,15 +35,17 @@ Function Create-StudentObject {
             #Path to root home dir location eg \\MyServer\Share\HomeDirs
             [PARAMETER(Mandatory=$False)]
             [String]
-            $RootHomeDirLocation = "\\Chidata\ClassDocs\Students",
-
+            $RootHomeDirLocation = "\\\MyServer\Share\HomeDirs",
+                
+            #The mail domain including the @ eg "@wingtip.pri"
             [PARAMETER(Mandatory=$False)]
             [String]
             $MailDomain = "@wingtip.pri",
 
+            #Path to OU where users will be created eg "OU=Users,OU=Main,DC=wingtip,DC=pri"        
             [PARAMETER(Mandatory=$False)]
             [String]
-            $Path = "OU=Users,OU=Main,DC=Wingtip,DC=Pri"
+            $Path = "OU=Users,OU=Main,DC=wingtip,DC=pri"
         )
 
     BEGIN {
@@ -115,16 +117,64 @@ Function Create-StudentObject {
             #See if this user already exists in Active Directory.  If they exist, then the $ADUser var contains an object that has a selection of 
             #properties from the Active Directory user account.  (Use $ADUser | GM to see properties returned.)
             $ADUser = Search-UserInAD -ID $csvUser.ID
-
+            
+            #8.
+            #The user was not found in Active Directory so create a new user.
             if($ADUser.SamAccountName -eq $NULL) {
                 Write-warning "The user: $($csvuser.Username) cannot be found in Active Directory."
                 Write-verbose "Creating new user account..."
                 # Create a new user in Active Directory
-                Create-NewADUser -UserObject $csvuser
-            } else {
+                $Result = Create-NewADUser -UserObject $csvuser
+                #If user creation failed...
+                if (!($Result)) {
+                    write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
+                    Write-warning "Reason: Creation of user in Active Directory failed." 
+                    break;
+                }
+                #Create a new home directory for the new user
+                if (!(Test-Path ($csvuser.HomeDirectory))) {                    
+                      try {
+                        write-verbose "Attempting to create Home Directory: $($csvuser.HomeDirectory)"
+                        New-Item ($csvuser.HomeDirectory) -type directory -ea Stop -ev x | Out-Null
+                        write-verbose "Directory successfully created."
+                      } catch {
+                            write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
+                            Write-warning "Reason: Unable to create home directory: $($csvuser.HomeDirectory)."
+                            break;
+                      }   
+                } else {
+                    write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
+                    Write-warning "Reason: The home directory $($csvuser.HomeDirectory) already exists."
+                    Write-warning "This should be a new user so the directory should not exist!" 
+                    Write-warning "Processing is, however,  partially complete - the user has been created in Active directory."
+                    break;
+                  }
+
+                #Set the ACL for the new home directory
+                try {
+                    Write-verbose "Setting ACL on directory..."
+                    $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain wingtip -ea Stop -ev x
+                    Write-verbose "ACL set."
+                } catch {
+                    write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
+                    Write-warning "Reason: Unable to set ACL for $($csvuser.username) on directory $($csvuser.homedirectory)"
+                    write-warning "Processing is, however partially complete: User created in A.D and Home Directory Created."
+                    break;
+                }
+
+
+                #Groups...
+
+            } # End if
+                        
+            #9.
+            #The user was found and therefore already exists in Active Directory - so let's move on with the next part of the processing...
+            if($ADUser.SamAccountName) {
                 Write-verbose "Processing next stage..."
                 # Do something...(next stage)            
             }
+       
+       
        
         } # End Foreach       
         Write-verbose "`n"
@@ -148,5 +198,13 @@ import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","
 #help Create-StudentObject -full
 
 
-#To Do:
-#Include logging (write-Log)
+<#
+To Do:
+------
+1. Include logging (write-Log)
+2. Remove 'WhatIf switch from 'CreateNewADUser'
+3. Remove 'WhatIf switch from 'new-item' in this script
+
+
+
+#>
