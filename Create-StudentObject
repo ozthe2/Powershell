@@ -35,17 +35,17 @@ Function Create-StudentObject {
             #Path to root home dir location eg \\MyServer\Share\HomeDirs
             [PARAMETER(Mandatory=$False)]
             [String]
-            $RootHomeDirLocation = "\\MyServer\Share\HomeDirs",
+            $RootHomeDirLocation = "\\MyServer\Share\HomeDirss",
 
             #The mail domain including the @ eg "@wingtip.pri"
             [PARAMETER(Mandatory=$False)]
             [String]
-            $MailDomain = "@@wingtip.pri",
+            $MailDomain = "@wingtip.pri",
 
             #Path to OU where users will be created eg "OU=Users,OU=Main,DC=wingtip,DC=pri"  
             [PARAMETER(Mandatory=$False)]
             [String]
-            $Path = "OU=Users,OU=Main,DC=wingtip,DC=pri"
+            $Path = "OU=Users,OU=Main,DC=wingtip,DC=pri"  
         )
 
     BEGIN {
@@ -61,12 +61,14 @@ Function Create-StudentObject {
             $Continue = $true  
        
             #1.
-            #Check to ensure that the ID number falls within the accepted range for our organisation       
+            #Check to ensure that the ID number falls within the accepted range for our organisation  
+            write-verbose "Checking ID number is valid..."     
             if(!(Validate-ID -ID $csvUser.ID)) {                
                 write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)"  
                 Write-warning "Reason: I.D number is not valid."               
                 break;
             }
+            write-verbose "ID Number is OK"
             
             #2.
             # Check that DOB is present, if not, set to a specified valid DOB so that user processing can continue.
@@ -114,11 +116,34 @@ Function Create-StudentObject {
             $csvuser | add-member -NotePropertyMembers @{"UserPrincipalName" = ($csvuser.username + $MailDomain)}                         
        
             #7.
+            #Check to see if the CourseCode-xxx group exists first, otherwise create it...
+            #Create the correct Course group name as per our naming standards for Active Directory.                
+            $CourseGroup = ("CourseCode-" + $csvuser.coursecode.substring(0,3)) 
+
+            write-verbose "Checking to see if the group $CourseGroup already exists..."
+            try {
+                $result = Get-ADGroup -Identity $coursegroup
+                write-verbose "Group already exists - no group creation is necessary."
+            } catch {
+                write-warning "The group: $CourseGroup does not exist in Active Directory."
+                Write-warning "Attempting to create the group..."
+                $result = Create-ADGroup -GroupName $coursegroup
+                if (!($result)){
+                    write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
+                    Write-warning "Reason: Creation of new group in Active Directory failed." 
+                    Write-warning "The error received was: $result"
+                    break;
+                } else {
+                    write-verbose "New Group created succesfully"
+                } 
+            }#end catch
+
+            #8.
             #See if this user already exists in Active Directory.  If they exist, then the $ADUser var contains an object that has a selection of 
             #properties from the Active Directory user account.  (Use $ADUser | GM to see properties returned.)
             $ADUser = Search-UserInAD -ID $csvUser.ID            
             
-            #8.
+            #9.
             # **** CREATE A NEW USER ROUTINE STARTS HERE ****
             #The user was not found in Active Directory so create a new user.
             if($ADUser.SamAccountName -eq $NULL) {
@@ -133,6 +158,7 @@ Function Create-StudentObject {
                     Write-warning "The error received was: $result"
                     break;
                 }
+                write-verbose "New user: $($csvuser.username) created in Active Directory."
                 #Create a new home directory for the new user
                 if (!(Test-Path ($csvuser.HomeDirectory))) {                    
                       try {
@@ -155,7 +181,7 @@ Function Create-StudentObject {
                 #Set the ACL for the new home directory
                 try {
                     Write-verbose "Setting ACL on directory..."
-                    $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain wingtip -ea Stop -ev x
+                    $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain Wingtip -ea Stop -ev x
                     Write-verbose "ACL set."
                 } catch {
                     write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
@@ -164,15 +190,7 @@ Function Create-StudentObject {
                     break;
                 }
 
-
-                #Groups...
-                #Check to see if the CourseCode-xxx group exists first, otherwise create it...
-                #code....(move further up in code so all generic checks have completed first?)
-
-
-                #Create the correct Course group name as per our naming standards for Active Directory.                
-                $CourseGroup = ("CourseCode-" + $csvuser.coursecode.substring(0,3))     
-                      
+                #Group handling... 
                 #Check to see if user is already a member of the coursecode-xxx group...
                 $result = Check-AlreadyGroupMember -UserAccount csvuser.$username -ADGroup $CourseGroup
 
@@ -185,8 +203,17 @@ Function Create-StudentObject {
                     }
                     # User is not already a member of the group, so add them as a member..
                     $false { 
-                    
-                    
+                        write-verbose "Attempting to add $($csvuser.username) to group: $CourseGroup."
+                        $result = Add-UserToADGroup -UserAccount $csvUser.username -ADGroup $CourseGroup;
+                        if ($result) {
+                            write-verbose "Successfully added user to group"
+                        } else {
+                            write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname).";
+                            Write-warning "Reason: An error occurred when trying to add the user to the group" ;
+                            Write-warning "The error returned was: $result";
+                            write-warning "This user has been partially processed: User created, HomeDir created, ACL set.";
+                            break;
+                        }
                     }
                     #An error was returned so stop processing..
                     $Default { write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname).";
@@ -200,7 +227,8 @@ Function Create-StudentObject {
 
             } # End if
                         
-            #9.
+            #10.
+            # **** USER ALREADY EXISTS IN A.D ROUTINE STARTS HERE ****
             #The user was found and therefore already exists in Active Directory - so let's move on with the next part of the processing...
             if($ADUser.SamAccountName) {
                 Write-verbose "Processing next stage..."
@@ -237,7 +265,7 @@ import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","
 To Do:
 ------
 1. Include logging (write-Log)
-2. Create new course group if required.
+2. Add to account-students group
 
 
 
