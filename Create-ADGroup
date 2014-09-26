@@ -32,9 +32,10 @@ function Create-ADGroup {
                    Position=0)]                      
         [String]
         $GroupName,
-        [Parameter (Mandatory=$true)]
+        #The path to the ou where the group object will be created eg "OU=Courses,OU=MyGroups,DC=wingtip,DC=pri"
+        [Parameter (Mandatory=$false)]
         [String]
-        $Path
+        $Path = "OU=Courses,OU=MyGroups,DC=wingtip,DC=pri"
     )
     
     PROCESS {
