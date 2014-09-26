@@ -1,0 +1,32 @@
+Function Check-AlreadyGroupMember {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    Param
+    (        
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$true,  
+                   Position=0)]              
+        [Alias("SAMAccountName","UserName","Name","user")] 
+        [String]
+        $UserAccount,
+        [Parameter (Mandatory=$true)]
+        [String]
+        $ADGroup
+    )
+    
+    PROCESS {    
+        try {
+            if ((get-adgroupmember $ADGroup -ea Stop -ev x).name -contains $UserAccount) {
+                write-warning "User $userAccount is already a member of the group $adgroup"
+                return $True
+            } else {
+                write-verbose "User $userAccount is not a member of the group $adgroup"
+                return $False
+            }
+        } catch {
+            #An error occured
+            return $x.errorrecord
+        } 
+     } # end process
+} # end function
