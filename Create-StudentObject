@@ -155,7 +155,7 @@ Function Create-StudentObject {
                 #Set the ACL for the new home directory
                 try {
                     Write-verbose "Setting ACL on directory..."
-                    $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain chi -ea Stop -ev x
+                    $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain wingtip -ea Stop -ev x
                     Write-verbose "ACL set."
                 } catch {
                     write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
