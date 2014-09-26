@@ -1,11 +1,35 @@
+<#
+.Synopsis
+Checks to see if a user is a member of a specified group and returns true or false.
+.DESCRIPTION
+Chesk to see if a user is a member of a specified group and returns true or false.
+.PARAMETER UserAccount
+This is the Active Directory account name that you wish to check is a member of a group.
+.PARAMETER ADGroup
+The name of the group in Active Directory that you wish to check membership against.
+.EXAMPLE
+Check-AlreadyGroupMember -UserAccount greend -ADGroup administrators
+False
+
+The above example checks the user 'GreenD' to see if they are a member of the Administrators group.  In this example, the user is not and 'False' is returned.
+.NOTES
+Version: 1.0
+Date: 26 September 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+
 Function Check-AlreadyGroupMember {
     [CmdletBinding()]
     [OutputType([bool])]
     Param
     (        
         [Parameter(Mandatory=$true, 
-                   ValueFromPipeline=$true,
-                   ValueFromPipelineByPropertyName=$true,  
+                   ValueFromPipeline=$false,
+                   ValueFromPipelineByPropertyName=$false,  
                    Position=0)]              
         [Alias("SAMAccountName","UserName","Name","user")] 
         [String]
