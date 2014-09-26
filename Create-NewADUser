@@ -28,13 +28,12 @@ function Create-NewADUser {
     }
 
     try {
-        new-aduser @Parms -WhatIf -ea Stop -ev x                
+        new-aduser @Parms -ea Stop -ev x                
         #User created so return $True
         return $True
-    } catch {
-        write-error $x
+    } catch {        
         #There was an error...
-        Return $false
-    }
+        Return $x.errorrecord
+    } 
 
 } # End Function
