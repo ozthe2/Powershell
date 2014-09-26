@@ -1,0 +1,48 @@
+<#
+.Synopsis
+Creates a new group in active directory
+.DESCRIPTION
+Creates a new group in active directory
+.PARAMETER GroupName
+The name of the group to create - this name is also used as the group SAMAccountname
+.PARAMETER Path
+The path tothe OU where the group will be created. eg "OU=My Groups,OU=Main,DC=wingtip,DC=pri"
+.EXAMPLE
+Create-ADGroup -GroupName MilkDrinkers -Path "OU=My Groups,OU=Main,DC=wingtip,DC=pri"
+True
+
+The above example creates the group 'MilkDrinkers'.  In this example, group is created and 'True' is returned. Otherwise the error is returned.
+.NOTES
+Version: 1.0
+Date: 26 September 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+
+function Create-ADGroup {
+    [CmdletBinding()]    
+    Param
+    (        
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$false,
+                   ValueFromPipelineByPropertyName=$false,  
+                   Position=0)]                      
+        [String]
+        $GroupName,
+        [Parameter (Mandatory=$true)]
+        [String]
+        $Path
+    )
+    
+    PROCESS {
+        try {
+            new-adgroup -Name $GroupName -SamAccountName $GroupName -GroupScope Global -path $Path -ea Stop -ev x
+            return $true
+        } catch {
+            return $x.errorrecord
+        }
+    }#End Process
+} # End Function
