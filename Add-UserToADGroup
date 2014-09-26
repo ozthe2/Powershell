@@ -1,0 +1,51 @@
+<#
+.Synopsis
+Adds a user to a group
+.DESCRIPTION
+Adds a user to a group
+.PARAMETER UserAccount
+This is the Active Directory account name that you want to add to a group.
+.PARAMETER ADGroup
+The name of the group in Active Directory that you want to add a user to.
+.EXAMPLE
+Add-UserToADGroup -UserAccount greend -ADGroup MilkDrinkers
+True
+
+The above example adds the user 'GreenD' to the MilkDrinkers group.  In this example, the user is added and 'True' is returned. Otherwise the error is returned.
+.NOTES
+Version: 1.0
+Date: 26 September 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+
+Function Add-UserToADGroup {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    Param
+    (        
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$false,
+                   ValueFromPipelineByPropertyName=$false,  
+                   Position=0)]              
+        [Alias("SAMAccountName","UserName","Name","user")] 
+        [String]
+        $UserAccount,
+        [Parameter (Mandatory=$true)]
+        [String]
+        $ADGroup
+    )
+    
+    PROCESS {
+        Try {            
+            Add-ADGroupMember -Identity $ADGroup -Members $useraccount -ea Stop -ev x            
+            return $true
+        } catch {            
+            #An error occured trying to add the user as a group member...
+            return $x.errorrecord
+        }
+    }#End Process
+}#End Function
