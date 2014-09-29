@@ -35,7 +35,7 @@ Function Create-StudentObject {
             #Path to root home dir location eg \\MyServer\Share\HomeDirs
             [PARAMETER(Mandatory=$False)]
             [String]
-            $RootHomeDirLocation = "\\MyServer\Share\HomeDirss",
+            $RootHomeDirLocation = "\\MyServer\Share\HomeDirs",
 
             #The mail domain including the @ eg "@wingtip.pri"
             [PARAMETER(Mandatory=$False)]
@@ -45,14 +45,20 @@ Function Create-StudentObject {
             #Path to OU where users will be created eg "OU=Users,OU=Main,DC=wingtip,DC=pri"  
             [PARAMETER(Mandatory=$False)]
             [String]
-            $Path = "OU=Users,OU=Main,DC=wingtip,DC=pri"  
+            $Path = "OU=Users,OU=Main,DC=wingtip,DC=pri" 
         )
 
     BEGIN {
 
         #Log locations for the logging function parameter
         $LogLocation = "To Be Completed"
-        $ErrorLogLocation = "To Be Completed"           
+        $ErrorLogLocation = "To Be Completed" 
+
+        #Any ACL's that cannot be set on the home directory will have the associated username
+        #stored in this array for processing in the 'End {}' section of this function.
+        #This is because for some reason the acl fails to be set on our NAS unless there is
+        #a small delay - but not always!
+        $ProcessACL=@()          
     }
     
     PROCESS {
@@ -62,7 +68,7 @@ Function Create-StudentObject {
        
             #1.
             #Check to ensure that the ID number falls within the accepted range for our organisation  
-            write-verbose "Checking ID number is valid..."     
+            write-verbose "Checking ID number is valid for user $($csvUser.firstname) $($csvUser.Surname) ..."     
             if(!(Validate-ID -ID $csvUser.ID)) {                
                 write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)"  
                 Write-warning "Reason: I.D number is not valid."               
@@ -181,13 +187,13 @@ Function Create-StudentObject {
                 #Set the ACL for the new home directory
                 try {
                     Write-verbose "Setting ACL on directory..."
-                    $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain Wingtip -ea Stop -ev x
+                    $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain wingtip -ea Stop -ev x
                     Write-verbose "ACL set."
-                } catch {
-                    write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
+                } catch {                    
                     Write-warning "Reason: Unable to set ACL for $($csvuser.username) on directory $($csvuser.homedirectory)"
-                    write-warning "Processing is, however partially complete: User created in A.D and Home Directory Created."
-                    break;
+                    write-warning "Will attempt to try again at the end of all user-data processing."
+                    #Add the user to the array for post processing
+                    $ProcessACL+=$Username;
                 }
 
                 #Group handling... 
@@ -230,12 +236,22 @@ Function Create-StudentObject {
             #10.
             # **** USER ALREADY EXISTS IN A.D ROUTINE STARTS HERE ****
             #The user was found and therefore already exists in Active Directory - so let's move on with the next part of the processing...
+            Write-verbose "User $Username already exists in Active Directory - skipping creation of new user object a new user object."
             if($ADUser.SamAccountName) {
                 Write-verbose "Processing next stage..."
-                # Do something...(next stage) 
+                # Do something...(next stage)
+                
+                #
                 
                 
             } #end if
+
+            #11.
+            # **** NEW USERS AND EXISTING USERS ****
+            
+            #a. Add to groups
+            #b. Set account expiry date
+            #c. Enable account
        
        
        
@@ -248,7 +264,33 @@ Function Create-StudentObject {
 
     } # End process
     
-    END {}
+    END {
+        #We need to introduce a delay before adding home directory ACL's as for some reason they do not
+        #always get created on the NAS without this delay.
+        #Only if there is something in the array...
+        if ($ProcessACL.count -gt 0 ) {
+            # 5 Minute delay...  
+            $TimeNow=get-date -Format "HH:mm"      
+            Write-output "Waiting 5 minutes before attempting ACL set on home directories.  Time Now: $TimeNow" 
+            start-sleep -s 300
+
+            #Process Home-Dir ACL's...
+            # Code......
+            foreach($user in $ProcessACL) {
+                #Set the ACL for the new home directory
+                $HomeDirectory = ($RootHomeDirLocation + "\$user")
+                try {
+                    Write-verbose "Attempting to set ACL on directory for user: $user on $HomeDirectory"
+                    $User | Set-DirACL -DirectoryToModify $HomeDirectory -ACLToAdd Modify -Domain wingtip -ea Stop -ev x
+                    Write-verbose "ACL set successfully."
+                } catch {                    
+                    Write-warning "Reason: Unable to set ACL for $user on directory $HomeDirectory"
+                    write-warning "This was the second attempt that failed.."
+                    break;
+                }#End catch
+            }#End foreach
+        }#End if
+    }#End END
 } # End Function
 
 
