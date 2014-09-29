@@ -45,7 +45,7 @@ Function Create-StudentObject {
             #Path to OU where users will be created eg "OU=Users,OU=Main,DC=wingtip,DC=pri"  
             [PARAMETER(Mandatory=$False)]
             [String]
-            $Path = "OU=Users,OU=Main,DC=wingtip,DC=pri" 
+            $Path = "OU=Users,OU=Main,DC=wingtip,DC=pri"
         )
 
     BEGIN {
@@ -56,7 +56,7 @@ Function Create-StudentObject {
 
         #Any ACL's that cannot be set on the home directory will have the associated username
         #stored in this array for processing in the 'End {}' section of this function.
-        #This is because for some reason the acl fails to be set on our NAS unless there is
+        #This is because for some reason the acl on home dirs fails to be set on our NAS unless there is
         #a small delay - but not always!
         $ProcessACL=@()          
     }
@@ -195,48 +195,12 @@ Function Create-StudentObject {
                     #Add the user to the array for post processing
                     $ProcessACL+=$Username;
                 }
-
-                #Group handling... 
-                #Check to see if user is already a member of the coursecode-xxx group...
-                $result = Check-AlreadyGroupMember -UserAccount csvuser.$username -ADGroup $CourseGroup
-
-                switch ($result) {
-                    #User is already a member of this group - they are a new user so this should not be the case...
-                    $True { write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname).";
-                            Write-warning "Reason: The user is already a member of group: $coursegroup however they are a new user so this should not be possible." ;
-                            write-warning "This user has been partially processed: User created, HomeDir created, ACL set.";   
-                            break;
-                    }
-                    # User is not already a member of the group, so add them as a member..
-                    $false { 
-                        write-verbose "Attempting to add $($csvuser.username) to group: $CourseGroup."
-                        $result = Add-UserToADGroup -UserAccount $csvUser.username -ADGroup $CourseGroup;
-                        if ($result) {
-                            write-verbose "Successfully added user to group"
-                        } else {
-                            write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname).";
-                            Write-warning "Reason: An error occurred when trying to add the user to the group" ;
-                            Write-warning "The error returned was: $result";
-                            write-warning "This user has been partially processed: User created, HomeDir created, ACL set.";
-                            break;
-                        }
-                    }
-                    #An error was returned so stop processing..
-                    $Default { write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname).";
-                               Write-warning "Reason: The user is already a member of group: $coursegroup however they are a new user so this should not be possible." ;
-                               write-warning "This user has been partially processed: User created, HomeDir created, ACL set.";    
-                               break;
-                     }
-                } # end switch
-                 
-              
-
             } # End if
                         
             #10.
             # **** USER ALREADY EXISTS IN A.D ROUTINE STARTS HERE ****
             #The user was found and therefore already exists in Active Directory - so let's move on with the next part of the processing...
-            Write-verbose "User $Username already exists in Active Directory - skipping creation of new user object a new user object."
+            Write-verbose "User $Username already exists in Active Directory - skipping creation of new user."
             if($ADUser.SamAccountName) {
                 Write-verbose "Processing next stage..."
                 # Do something...(next stage)
@@ -249,9 +213,44 @@ Function Create-StudentObject {
             #11.
             # **** NEW USERS AND EXISTING USERS ****
             
-            #a. Add to groups
+            #a. Add to course groups
             #b. Set account expiry date
             #c. Enable account
+            #d. Add to account-students group
+            #Group handling... 
+
+            #a.
+            #Add to course groups
+            #Check to see if user is already a member of the coursecode-xxx group...
+            $result = Check-AlreadyGroupMember -UserAccount $($csvuser.username) -ADGroup $CourseGroup
+              
+            switch ($result) {
+                #User is already a member of this group - they do not need to be added...
+                $True { Write-verbose "No group additions have been made." ;                            
+                        # break;
+                }
+                # User is not already a member of the group, so add them as a member..
+                $false { 
+                    write-verbose "Attempting to add $($csvuser.username) to group: $CourseGroup."
+                    $result = Add-UserToADGroup -UserAccount $csvUser.username -ADGroup $CourseGroup;
+                    if ($result) {
+                        write-verbose "Successfully added user to group"
+                    } else {
+                        write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname).";
+                        Write-warning "Reason: An error occurred when trying to add the user to the group" ;
+                        Write-warning "The error returned was: $result";
+                        write-warning "This user has been partially processed: User created, HomeDir created, ACL set.";
+                        #break;
+                    }
+                }
+                #An error was returned so stop processing..
+                $Default { write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname).";
+                            Write-warning "Reason: An error has been returned trying to add the user to: $coursegroup." ;                               
+                            write-warning "This user has been partially processed: User created, HomeDir created, ACL set.";    
+                            write-warning "The error message returned is: $result"
+                            break;
+                    }
+            } # end switch
        
        
        
@@ -268,10 +267,10 @@ Function Create-StudentObject {
         #We need to introduce a delay before adding home directory ACL's as for some reason they do not
         #always get created on the NAS without this delay.
         #Only if there is something in the array...
-        if ($ProcessACL.count -gt 0 ) {
-            # 5 Minute delay...  
+        if ($ProcessACL.count -gt 0 ) {           
             $TimeNow=get-date -Format "HH:mm"      
             Write-output "Waiting 5 minutes before attempting ACL set on home directories.  Time Now: $TimeNow" 
+            # 5 Minute delay...  
             start-sleep -s 300
 
             #Process Home-Dir ACL's...
@@ -285,7 +284,7 @@ Function Create-StudentObject {
                     Write-verbose "ACL set successfully."
                 } catch {                    
                     Write-warning "Reason: Unable to set ACL for $user on directory $HomeDirectory"
-                    write-warning "This was the second attempt that failed.."
+                    write-warning "This was the second attempt that failed, further investigation will be necessary."
                     break;
                 }#End catch
             }#End foreach
