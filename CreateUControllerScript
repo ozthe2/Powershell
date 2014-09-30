@@ -111,12 +111,17 @@ Function Create-StudentObject {
             #Make the username a property of the current object
             $csvuser | add-member -NotePropertyMembers @{"Username" =$Username}
 
+            #5a.
+            #Set account expiry date to UK format and add 14 days to the course end date for a bit of leeway.
+            $AdjustedCourseExpiryDate = (get-date (Verify-Date -Date $csvUser.CourseEnd)).AddDays("14")
+
             #6.
             #Add other essential properties to the current object as this object will be passed to another function that requires them.
             $csvuser | add-member -NotePropertyMembers @{"HomeDirectory" = ($RootHomeDirLocation + "\" + $username)}
             $csvuser | add-member -NotePropertyMembers @{"EmailAddress" = ($csvuser.username + $MailDomain)}
             $csvuser | add-member -NotePropertyMembers @{"Path" = $Path}
-            $csvuser | add-member -NotePropertyMembers @{"AccountExpirationDate" = (Get-Date ($csvUser.CourseEnd)).AddDays(10)}
+            #$csvuser | add-member -NotePropertyMembers @{"AccountExpirationDate" = (Get-Date ($csvUser.CourseEnd)).AddDays(14)}
+            $csvuser | add-member -NotePropertyMembers @{"AccountExpirationDate" = $AdjustedCourseExpiryDate}
             $csvuser | add-member -NotePropertyMembers @{"AccountPassword" = (ConvertTo-SecureString (get-date ($csvUser.dob) -format "ddMMyyyy") -AsPlainText -force)}
             $csvuser | add-member -NotePropertyMembers @{"DisplayName" = ($CSVUser.Surname + ", " + $CSVUser.Firstname + " (" + $CSVUser.id + ")")}
             $csvuser | add-member -NotePropertyMembers @{"UserPrincipalName" = ($csvuser.username + $MailDomain)}                         
@@ -203,9 +208,24 @@ Function Create-StudentObject {
             Write-verbose "User $Username already exists in Active Directory - skipping creation of new user."
             if($ADUser.SamAccountName) {
                 Write-verbose "Processing next stage..."
-                # Do something...(next stage)
                 
-                #
+                #Check that user account expiry date is correct.  This is an existing user on a new course so this may need updating.                                
+                #We need to subtract 1 as for some the date presented is 1 day ahead."
+                $DateADAccExpires = (get-date $ADUser.accountexpirationdate).AddDays("-1")
+                                  
+                write-verbose "Checking account expiry date is correct..."
+                if ((get-date $AdjustedCourseExpiryDate) -gt (get-date $DateADAccExpires)) {
+                    write-warning "Expiry date requires adjustment"
+                    try {
+                        Set-ADAccountExpiration -Identity $username -DateTime $AdjustedCourseExpiryDate.AddDays("1") -ea Stop -ev x                       
+                        write-verbose ("Changed expiration date from: " + (get-date $DateADAccExpires -Format "dd/MM/yyyy") + " to: " + (get-date $AdjustedCourseExpiryDate -Format "dd/MM/yyyy"))
+                    } catch {
+                        write-warning "An error occured trying to change the account expiration date"
+                        $x.errormessage                        
+                    }#end catch
+                } else {
+                    write-verbose "No account expiry adjustment required."
+                }#end else
                 
                 
             } #end if
@@ -213,48 +233,72 @@ Function Create-StudentObject {
             #11.
             # **** NEW USERS AND EXISTING USERS ****
             
-            #a. Add to course groups
-            #b. Set account expiry date
-            #c. Enable account
-            #d. Add to account-students group
-            #Group handling... 
+            #a. Update ADUser variable
+            #b. Add user to groups
+            #c. Enable account            
 
             #a.
-            #Add to course groups
-            #Check to see if user is already a member of the coursecode-xxx group...
-            $result = Check-AlreadyGroupMember -UserAccount $($csvuser.username) -ADGroup $CourseGroup
-              
-            switch ($result) {
-                #User is already a member of this group - they do not need to be added...
-                $True { Write-verbose "No group additions have been made." ;                            
-                        # break;
-                }
-                # User is not already a member of the group, so add them as a member..
-                $false { 
-                    write-verbose "Attempting to add $($csvuser.username) to group: $CourseGroup."
-                    $result = Add-UserToADGroup -UserAccount $csvUser.username -ADGroup $CourseGroup;
+            #Update ADUser variable now that a new user may have been created
+            #This is not efficient as this has already been done once..look into improving this in rev.2 of this script.
+            $ADUser = Search-UserInAD -ID $csvUser.ID                       
+                        
+            #b.
+            #Add user to groups
+            #Check to see if user is already a member of the coursecode-xxx and account-students group...
+            $GroupMembership=@()  
+            $CourseGroups=@()
+            #Populate $CourseGroups with the groups that the user should be a member of...
+            $CourseGroups+= $CourseGroup
+            $CourseGroups+= 'Account-Students'
+                 
+            #Determine which groups user is already a member of and add to the array
+            foreach ($Group in $ADUser.memberof) {                
+                $GroupMembership+= $Group.split(",").Substring(3)
+            }
+
+            write-verbose "Checking for group membership..."                
+            foreach ($MandatoryGroup in $CourseGroups ) {
+                if ($GroupMembership -notcontains $MandatoryGroup) {
+                    write-verbose "Adding user to group: $MandatoryGroup"
+                    $result = $MandatoryGroup | Add-UserToADGroup -UserAccount $csvUser.username
                     if ($result) {
-                        write-verbose "Successfully added user to group"
+                        write-verbose "Successfully added user to group:$MandatoryGroup"
                     } else {
-                        write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname).";
-                        Write-warning "Reason: An error occurred when trying to add the user to the group" ;
-                        Write-warning "The error returned was: $result";
-                        write-warning "This user has been partially processed: User created, HomeDir created, ACL set.";
-                        #break;
-                    }
+                        write-warning "An error occurred - unable to add user: $Username to group: $CourseGroup"
+                        write-warning "The error returned was : $result"
+                    }#End else
+                } else {
+                    write-verbose "User is already a group member of: $MandatoryGroup"
+                }#end else
+            }#end foreach
+
+            #c.
+            #Enable the user account
+            if ($ADUser.enabled) {
+                write-verbose "User account is already enabled"
+            } else {
+                write-verbose "Account is disabled.  Attempting to enable user account..."
+                try {
+                    Enable-ADAccount -Identity $aduser.samaccountname -ea Stop -ev x
+                    write-verbose "Account enabled for $username"
+                } catch {
+                    write-error "Unable to enable the user account."
+                    write-error "The error was: $x.errorrecord"
                 }
-                #An error was returned so stop processing..
-                $Default { write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname).";
-                            Write-warning "Reason: An error has been returned trying to add the user to: $coursegroup." ;                               
-                            write-warning "This user has been partially processed: User created, HomeDir created, ACL set.";    
-                            write-warning "The error message returned is: $result"
-                            break;
-                    }
-            } # end switch
-       
-       
-       
-        } # End Foreach       
+            } #end else
+
+            
+           
+
+            
+            
+            
+
+
+
+           
+        } # End Foreach 
+        write-verbose "---------------------------------------------"      
         Write-verbose "`n"
 
 
@@ -274,7 +318,6 @@ Function Create-StudentObject {
             start-sleep -s 300
 
             #Process Home-Dir ACL's...
-            # Code......
             foreach($user in $ProcessACL) {
                 #Set the ACL for the new home directory
                 $HomeDirectory = ($RootHomeDirLocation + "\$user")
@@ -306,8 +349,5 @@ import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","
 To Do:
 ------
 1. Include logging (write-Log)
-2. Add to account-students group
-
-
 
 #>
