@@ -28,24 +28,32 @@ Function Add-UserToADGroup {
     Param
     (        
         [Parameter(Mandatory=$true, 
-                   ValueFromPipeline=$false,
-                   ValueFromPipelineByPropertyName=$false,  
-                   Position=0)]              
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$true,  
+                   Position=0)]                      
+        [String[]]
+        $ADGroup,
+        [Parameter (Mandatory=$false)]
         [Alias("SAMAccountName","UserName","Name","user")] 
         [String]
-        $UserAccount,
-        [Parameter (Mandatory=$true)]
-        [String]
-        $ADGroup
+        $UserAccount
     )
     
     PROCESS {
-        Try {            
-            Add-ADGroupMember -Identity $ADGroup -Members $useraccount -ea Stop -ev x            
+        foreach ($Group in $ADGroup) {
+            $continue = $true
+            Try {            
+                Add-ADGroupMember -Identity $Group -Members $useraccount -ea Stop -ev x            
+                #return $true
+            } catch {            
+                #An error occured trying to add the user as a group member...
+                $continue = $false
+                return $x.errorrecord
+            }
+        }#End foreach
+        
+        if ($continue) {
             return $true
-        } catch {            
-            #An error occured trying to add the user as a group member...
-            return $x.errorrecord
         }
     }#End Process
 }#End Function
