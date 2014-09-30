@@ -1,8 +1,8 @@
 <#
 .Synopsis
 Checks to see if a user is a member of a specified group and returns true or false.
-.DESCRIPTION
-Chesk to see if a user is a member of a specified group and returns true or false.
+.DECRIPTION
+Checks to see if a user is a member of a specified group and returns true or false.
 .PARAMETER UserAccount
 This is the Active Directory account name that you wish to check is a member of a group.
 .PARAMETER ADGroup
@@ -10,8 +10,12 @@ The name of the group in Active Directory that you wish to check membership agai
 .EXAMPLE
 Check-AlreadyGroupMember -UserAccount greend -ADGroup administrators
 False
+.EXAMPLE
+'TeaDrinkers','MilkDrinkers' | Check-AlreadyGroupMember -UserAccount GreenD
+False
+True
 
-The above example checks the user 'GreenD' to see if they are a member of the Administrators group.  In this example, the user is not and 'False' is returned.
+The above example checks the user 'GreenD' to see if they are a member of the TeaDrinkers and MilkDrinkers group.  True or false is returned for each group in the pipeline.
 .NOTES
 Version: 1.0
 Date: 26 September 2014
@@ -28,29 +32,32 @@ Function Check-AlreadyGroupMember {
     Param
     (        
         [Parameter(Mandatory=$true, 
-                   ValueFromPipeline=$false,
-                   ValueFromPipelineByPropertyName=$false,  
-                   Position=0)]              
-        [Alias("SAMAccountName","UserName","Name","user")] 
-        [String]
-        $UserAccount,
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$true,  
+                   Position=0)]                       
+        [String[]]
+        $ADGroup,
         [Parameter (Mandatory=$true)]
+        [Alias("SAMAccountName","UserName","Name","user")]
         [String]
-        $ADGroup
+        $UserAccount
     )
     
-    PROCESS {    
-        try {
-            if ((get-adgroupmember $ADGroup -ea Stop -ev x).name -contains $UserAccount) {
-                write-warning "User $userAccount is already a member of the group $adgroup"
-                return $True
-            } else {
-                write-verbose "User $userAccount is not a member of the group $adgroup"
-                return $False
-            }
-        } catch {
-            #An error occured
-            return $x.errorrecord
-        } 
+    PROCESS { 
+        foreach ($group in $ADGroup){   
+            $continue = $true
+            try {
+                if ((get-adgroupmember $Group -ea Stop -ev x).name -contains $UserAccount) {
+                    write-warning "User $userAccount is already a member of the group $group"
+                    return $True
+                } else {
+                    write-verbose "User $userAccount is not a member of the group $group"
+                    return $False
+                }
+            } catch {
+                #An error occured
+                return $x.errorrecord
+            } 
+        }#End foreach
      } # end process
 } # end function
