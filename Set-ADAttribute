@@ -1,0 +1,64 @@
+<#
+.Synopsis
+Sets the Active Directory User object property: employeeType.
+.DESCRIPTION
+Sets the Active Directory User object property: employeeType to whatever is in the text parameter.
+.PARAMETER ADUser
+The output object of Search-UserInAD or an active directory user object that contains the EmployeeType property
+.PARAMETER Text
+The text to set in the A.D. user EmployeeType attribute.
+.EXAMPLE
+'GreenD','BloggsF' | get-aduser -properties * | Set-EmployeeType -text 'MilkDrinker'
+True
+False
+
+The above example returns true if the property is successfully set otherwise false is returned.
+.NOTES
+Version: 1.0
+Date: 2 October 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+.LINK
+Search-UserInAD, Get-adUser, Get-AdAttribute
+#>
+
+Function Set-ADAttribute {
+[CmdletBinding()]
+    [OutputType([bool])]
+    Param
+    (        
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$false,  
+                   Position=0)]                                      
+        [psobject[]]
+        $ADUser,
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("employeeType","GivenName","Surname","DisplayName")]
+        [String]
+        $Attribute,
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullorEmpty()]
+        [String]
+        $Text
+    )
+
+    BEGIN {}
+
+    PROCESS {
+        foreach ($User in $ADUser) {  
+            switch ($Attribute) {
+                "employeeType" {set-aduser -Identity $aduser.samaccountname  -Replace @{employeeType = $Text} -ea Stop -ev x}
+
+
+            }#end switch
+        }#end foreach
+
+    }#End process
+
+    END {}
+
+}#End function
