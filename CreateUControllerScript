@@ -202,15 +202,25 @@ Function Create-StudentObject {
                 }
             } # End if
                         
+           
+           
             #10.
             # **** USER ALREADY EXISTS IN A.D ROUTINE STARTS HERE ****
+
+            #a. Check account expiry
+            #b. Ensure that employeeType AD attribute is set.            
+            #c. Ensure that the Display Name in Active Directory is correct. 
+            #d. Ensure that the Given Name in Active Directory is correct. 
+            #e. Ensure that the Surname in Active Directory is correct. 
+            
             #The user was found and therefore already exists in Active Directory - so let's move on with the next part of the processing...
             Write-verbose "User $Username already exists in Active Directory - skipping creation of new user."
             if($ADUser.SamAccountName) {
                 Write-verbose "Processing next stage..."
                 
+                #a. Check account expiry
                 #Check that user account expiry date is correct.  This is an existing user on a new course so this may need updating.                                
-                #We need to subtract 1 as for some the date presented is 1 day ahead."
+                #We need to subtract 1 as the date presented is 1 day ahead."
                 $DateADAccExpires = (get-date $ADUser.accountexpirationdate).AddDays("-1")
                                   
                 write-verbose "Checking account expiry date is correct..."
@@ -226,6 +236,62 @@ Function Create-StudentObject {
                 } else {
                     write-verbose "No account expiry adjustment required."
                 }#end else
+
+                #b. 
+                #Ensure that employeeType AD attribute is set. 
+                try {
+                    if (!($aduser | Get-ADAttribute -text 'student' -Attribute employeeType -ea Stop -ev x)) {
+                        write-verbose "EmployeeType is not correct: Setting EmployeeType..."
+                        $aduser | Set-ADAttribute -Text 'student' -Attribute employeeType -ea Stop -ev x
+                        write-verbose "EmployeeType set OK."
+                    } else {
+                        write-verbose "EmployeeType is OK"
+                    }
+                } catch {
+                    write-error "An error occured trying to check \ set the employeeType property."
+                }
+
+                #c.
+                #Ensure that the Display Name in Active Directory is correct.
+                try {
+                    if (!($aduser | Get-ADAttribute -text $($csvuser.displayname) -Attribute DisplayName -ea Stop -ev x)) {
+                        write-verbose "DisplayName is not correct: Setting DisplayName..."
+                        $aduser | Set-ADAttribute -Text $csvuser.displayname -Attribute DisplayName -ea Stop -ev x
+                        write-verbose "DisplayName set OK."
+                    } else {
+                        write-verbose "DisplayName is OK"
+                    }
+                } catch {
+                    write-error "An error occured trying to check \ set the Display Name property."
+                }
+            
+                #d.
+                #Ensure that the Given Name in Active Directory is correct.
+                try {
+                    if (!($aduser | Get-ADAttribute -text $($csvuser.firstname) -Attribute GivenName -ea Stop -ev x)) {
+                        write-verbose "GivenName is not correct: Setting GivenName..."
+                        $aduser | Set-ADAttribute -Text $csvuser.firstname -Attribute GivenName -ea Stop -ev x
+                        write-verbose "GivenName set OK."
+                    } else {
+                        write-verbose "GivenName is OK"
+                    }
+                } catch {
+                    write-error "An error occured trying to check \ set the Given Name property."
+                }
+
+                #e.
+                #Ensure that the Surname in Active Directory is correct.
+                try {
+                    if (!($aduser | Get-ADAttribute -text $($csvuser.surname) -Attribute Surname -ea Stop -ev x)) {
+                        write-verbose "Surname is not correct: Setting Surname..."
+                        $aduser | Set-ADAttribute -Text $csvuser.surname -Attribute Surname -ea Stop -ev x
+                        write-verbose "Surname set OK."
+                    } else {
+                        write-verbose "Surname is OK"
+                    }
+                } catch {
+                    write-error "An error occured trying to check \ set the Surname property."
+                }
                 
                 
             } #end if
@@ -235,7 +301,8 @@ Function Create-StudentObject {
             
             #a. Update ADUser variable
             #b. Add user to groups
-            #c. Enable account            
+            #c. Enable account  
+                  
 
             #a.
             #Update ADUser variable now that a new user may have been created
@@ -288,6 +355,8 @@ Function Create-StudentObject {
             } #end else
 
             
+           
+           
            
 
             
