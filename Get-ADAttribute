@@ -1,0 +1,70 @@
+<#
+.Synopsis
+Tests to seee if an A.D user has it's employeeType attribute set to 'student'
+.DESCRIPTION
+Returns True if the attribute is set otherwise returns false
+.PARAMETER ADUser
+The output object of Search-UserInAD or an active directory user object that contains the EmployeeType property
+.PARAMETER Attribute
+The property of the user object that you wish to check against.
+.PARAMETER Text
+The text string to search for in the A.D. user EmployeeType attribute.
+.EXAMPLE
+'GreenD','BloggsF' | get-aduser -properties * | Check-EmployeeType -text 'MilkDrinker' -attribute 'employeeType'
+True
+False
+
+The above example returns true or false depending on if the 'EmployeeType' attribute has been set to 'MilkDrinker' or not.  In this case, GreenD has the attribute set but BloggsF does not.
+.NOTES
+Version: 1.0
+Date: 2 October 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+.LINK
+Search-UserInAD, Get-adUser, Set-ADAttribute
+#>
+
+Function Get-ADAttribute {
+[CmdletBinding()]
+    [OutputType([bool])]
+    Param
+    (        
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$false,  
+                   Position=0)]                                      
+        [psobject[]]
+        $ADUser,
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("employeeType","GivenName","Surname","DisplayName")]
+        [String]
+        $Attribute,
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullorEmpty()]
+        [String]
+        $Text
+    )
+
+    BEGIN {}
+
+    PROCESS {
+        foreach ($User in $ADUser) {  
+            switch ($Attribute) {          
+                "employeeType" {
+                                    if (($User.employeetype -cne $text) -or ($User.employeetype -eq $null)){
+                                        return $False
+                                    } else {
+                                        return $true
+                                    }
+                                }
+                 
+            }#end switch
+        }#end foreach
+    }#End process
+
+    END {}
+
+}#End function
