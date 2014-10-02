@@ -164,7 +164,11 @@ Function Create-StudentObject {
             #b. Ensure that employeeType AD attribute is set.            
             #c. Ensure that the Display Name in Active Directory is correct. 
             #d. Ensure that the Given Name in Active Directory is correct. 
-            #e. Ensure that the Surname in Active Directory is correct. 
+            #e. Ensure that the Surname in Active Directory is correct.
+            #f. Test for name change - if surname on data is different to A.D account then various changes are required... 
+            #g. Test \ set email
+            #h. Test \ set profile (path to home directory)
+            #i. rename home dir if required
             
             #The user was found and therefore already exists in Active Directory - so let's move on with the next part of the processing...            
             if($ADUser.SamAccountName) {
@@ -245,6 +249,41 @@ Function Create-StudentObject {
                 } catch {
                     write-error "An error occured trying to check \ set the Surname property."
                 }
+
+
+                
+                #f. Test for name change - if surname on csv data is different to A.D account then various changes are required...                
+                if ($csvuser.username -ne $ADUser.samaccountname) {
+                    write-verbose "The surname has changed!  Adjusting A.D user account..."
+                    try {
+                        Set-ADUser -Identity $aduser.samaccountname -samaccountname $csvuser.username -userprincipalname $csvuser.userprincipalname -ea Stop -ev x
+                        write-verbose "SAMAccountName and UserPrincipal name changed successfully"
+                    }
+                    catch {
+                        write-error "An error occured trying to use 'Set-ADUser'"
+                        write-error "Unable to continue processing user: $username "
+                        write-error $x.errorrecord
+                        break;
+                    }
+                    try {
+                        write-verbose "Attempting to rename Active Directory User Object..."                        
+                        Rename-ADObject -Identity $aduser.objectguid -NewName $csvuser.username -ea Stop -ev x
+                        write-verbose "Successfully renamed A.D user object from $($aduser.samaccountname) to $($csvuser.username)"
+                    }
+                    catch {
+                        write-error "An error occurred trying to rename the A.D user object."
+                        write-error "Processing of this user has been aborted."
+                        write-error $x.errorrecord
+                        break;
+                    }
+                }#end if
+
+                #g. Test \ set email
+
+                #h. Test \ set profile (path to home directory)
+
+                #i. rename home dir if required
+
                                
                 write-verbose ""
             } #end if         
