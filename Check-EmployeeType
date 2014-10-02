@@ -5,12 +5,14 @@ Tests to seee if an A.D user has it's employeeType attribute set to 'student'
 Returns True if the attribute is set otherwise returns false
 .PARAMETER ADUser
 The output object of Search-UserInAD or an active directory user object that contains the EmployeeType property
+.PARAMETER Text
+The text string to search for in the A.D. user EmployeeType attribute.
 .EXAMPLE
-'GreenD','BloggsF' | get-aduser -properties * | Check-EmployeeType
+'GreenD','BloggsF' | get-aduser -properties * | Check-EmployeeType -text 'MilkDrinker'
 True
 False
 
-The above example returns true or false depending on if the attribute has been set to 'student' or not.  In this case, GreenD has the attribute set but BloggsF does not.
+The above example returns true or false depending on if the attribute has been set to 'MilkDrinker' or not.  In this case, GreenD has the attribute set but BloggsF does not.
 .NOTES
 Version: 1.0
 Date: 2 October 2014
@@ -33,7 +35,11 @@ Function Check-EmployeeType {
                    ValueFromPipelineByPropertyName=$false,  
                    Position=0)]                                      
         [psobject[]]
-        $ADUser
+        $ADUser,
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullorEmpty()]
+        [String]
+        $Text
     )
 
     BEGIN {}
@@ -41,7 +47,7 @@ Function Check-EmployeeType {
     PROCESS {
         foreach ($User in $ADUser) {
             $continue=$true
-            if (($User.employeetype -cne "student") -or ($User.employeetype -eq $null)){
+            if (($User.employeetype -cne $text) -or ($User.employeetype -eq $null)){
                 return $False
             } else {
                 return $true
