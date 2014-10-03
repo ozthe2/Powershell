@@ -61,9 +61,9 @@ Function Search-UserInAD {
             $Continue = $true
             try {
                 if ($searchbase) {
-                    $User = Get-ADUser -filter {EmployeeNumber -eq $UserID} -Properties * -SearchBase $SearchBase -searchscope OneLevel  | select AccountExpirationDate,objectguid,displayName,EmployeeNumber,employeeType,Enabled,GivenName,HomeDirectory,HomeDrive,Surname,SAMAccountName,MemberOf,PhysicalOfficeDeliveryName -ea Stop -ev x
+                    $User = Get-ADUser -filter {EmployeeNumber -eq $UserID} -Properties * -SearchBase $SearchBase -searchscope OneLevel  | select AccountExpirationDate,profilepath,objectguid,mail,displayName,EmployeeNumber,employeeType,Enabled,GivenName,HomeDirectory,HomeDrive,Surname,SAMAccountName,MemberOf,PhysicalOfficeDeliveryName -ea Stop -ev x
                 } else {
-                    $User = Get-ADUser -filter {EmployeeNumber -eq $UserID} -Properties * | select AccountExpirationDate,objectguid,displayName,EmployeeNumber,employeeType,Enabled,GivenName,HomeDirectory,HomeDrive,Surname,SAMAccountName,MemberOf,PhysicalOfficeDeliveryName -ea Stop -ev x
+                    $User = Get-ADUser -filter {EmployeeNumber -eq $UserID} -Properties * | select AccountExpirationDate,profilepath,objectguid,mail,displayName,EmployeeNumber,employeeType,Enabled,GivenName,HomeDirectory,HomeDrive,Surname,SAMAccountName,MemberOf,PhysicalOfficeDeliveryName -ea Stop -ev x
                 }
 
             } catch {
@@ -86,6 +86,8 @@ Function Search-UserInAD {
                         'PhysicalOfficeDeliveryName' = $user.PhysicalDeliveryOffice;
                         'MemberOf' = $user.MemberOf;
                         'ObjectGUID' = $User.objectguid;
+                        'mail'=$user.mail;
+                        'profilepath'=$user.profilepath;
                         'DisplayName' = $user.displayName
                           }
                 $obj = New-Object -TypeName psobject -Property $props
