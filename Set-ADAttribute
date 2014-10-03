@@ -37,7 +37,7 @@ Function Set-ADAttribute {
         [psobject[]]
         $ADUser,
         [Parameter(Mandatory=$true)]
-        [ValidateSet("employeeType","GivenName","Surname","DisplayName")]
+        [ValidateSet("employeeType","GivenName","Surname","DisplayName","Email","HomeDrive","HomeDirectory")]
         [String]
         $Attribute,
         [Parameter(Mandatory=$true)]
@@ -51,8 +51,19 @@ Function Set-ADAttribute {
     PROCESS {
         foreach ($User in $ADUser) {  
             switch ($Attribute) {
-                "employeeType" {set-aduser -Identity $aduser.samaccountname  -Replace @{employeeType = $Text} -ea Stop -ev x}
+                "employeeType" {set-aduser -Identity $aduser.samaccountname  -Replace @{employeeType = $Text} -ea Stop -ev x;break}
 
+                "DisplayName"   {set-aduser -Identity $aduser.samaccountname  -DisplayName $Text -ea Stop -ev x;break}
+
+                "GivenName"   {set-aduser -Identity $aduser.samaccountname  -GivenName $Text -ea Stop -ev x;break}
+
+                "Surname"   {set-aduser -Identity $aduser.samaccountname  -Surname $Text -ea Stop -ev x;break}
+
+                "Email"   {Set-ADUser -Identity $aduser.samaccountname -emailaddress $Text -ea stop -ev x;break}
+
+                "HomeDrive"   {Set-ADUser -Identity $aduser.samaccountname -homedrive $Text -ea stop -ev x;break}
+
+                "HomeDirectory"   {Set-ADUser -Identity $aduser.samaccountname -homedirectory $Text -ea stop -ev x;break}
 
             }#end switch
         }#end foreach
