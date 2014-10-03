@@ -1,0 +1,50 @@
+<#
+.Synopsis
+Renames a directory
+.DESCRIPTION
+Renames a directory 
+.PARAMETER Path
+Specifies the path to the item to rename.
+.PARAMETER NewName
+Specifies the new name of the item. Enter only a name, not a path and name. 
+.EXAMPLE
+rename-directory -path c:\SecretStuff -newname Stuff
+
+Renames the directory c:\SecretStuff to: Stuff
+.EXAMPLE
+import-csv c:\rename.csv | rename-directory
+
+The csv file contains the headers of: path and newname followed by the csv data, each line in the csv is processed and directories renamed.
+.NOTES
+Version: 1.0
+Date: 3 October 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+
+function Rename-Directory {
+
+[CmdletBinding()]
+    [OutputType([bool])]
+    Param
+    (        
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$true,  
+                   Position=0)]                                      
+        [string]
+        $Path,
+        [Parameter(Mandatory=$true,
+                   ValueFromPipelineByPropertyName=$true)]        
+        [String]
+        $NewName
+    )
+
+
+    PROCESS {        
+        Rename-Item -Path $path -NewName $newname -ea Stop -ev x
+    }#end process
+}#end function
