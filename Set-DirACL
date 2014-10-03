@@ -60,7 +60,7 @@ function Set-DirACL {
         [string]
         $ACLToAdd,
 
-        # Param4 If not specified will assume user is BuiltIn\Username
+        # Param4 If not specified will the local computer account
         [parameter(Mandatory=$false)]                         
         [String]        
         $Domain = $env:COMPUTERNAME
@@ -97,9 +97,8 @@ function Set-DirACL {
             $FullUserName = ($domain + "\" + $User)   
 
             #Get the current ACL for the directory
-            $ACL = get-acl -Path $DirectoryToModify 
+            $ACL = get-acl -Path $DirectoryToModify            
            
-
            #Write the requested ACL as it is currently not present.
             if (!($ACLCorrect)) {
                 try {
@@ -133,3 +132,8 @@ function Set-DirACL {
     END {}
 
 }# End Function
+
+#\\Chidata\ClassDocs\Students\ALB49166756
+
+
+#Set-DirACL -UserAccount ALB49166756 -DirectoryToModify \\Chidata\ClassDocs\Students\ALB49166756 -ACLToAdd Modify -Domain chi
