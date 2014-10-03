@@ -1,6 +1,6 @@
 <#
 .Synopsis
-Tests to seee if an A.D user has it's employeeType attribute set to 'student'
+Tests to seee if an A.D user has it's employeeType attribute set to a given value
 .DESCRIPTION
 Returns True if the attribute is set otherwise returns false
 .PARAMETER ADUser
@@ -39,7 +39,7 @@ Function Get-ADAttribute {
         [psobject[]]
         $ADUser,
         [Parameter(Mandatory=$true)]
-        [ValidateSet("employeeType","GivenName","Surname","DisplayName")]
+        [ValidateSet("employeeType","GivenName","Surname","DisplayName","Email","HomeDrive","HomeDirectory")]
         [String]
         $Attribute,
         [Parameter(Mandatory=$true)]
@@ -58,7 +58,51 @@ Function Get-ADAttribute {
                                         return $False
                                     } else {
                                         return $true
-                                    }
+                                    };break;
+                                }
+                "DisplayName"   {
+                                    if ($Text -ne $user.displayname) {
+                                        return $false
+                                    } else {
+                                        return $true
+                                    };break;
+                                }
+                "GivenName"   {
+                                    if ($Text -ne $user.givenname) {
+                                        return $false
+                                    } else {
+                                        return $true
+                                    };break;
+                                }
+                "Surname"   {
+                                    if ($Text -ne $user.surname) {
+                                        return $false
+                                    } else {
+                                        return $true
+                                    };break;
+                                }
+                "Email"   {
+                                    if ($Text -ne $user.mail) {
+                                        return $false
+                                    } else {
+                                        return $true
+                                    };break;
+                                }
+
+                "Homedrive"   {
+                                    if ($Text -ne $user.homedrive) {
+                                        return $false
+                                    } else {
+                                        return $true
+                                    };break;
+                                }
+
+                "HomeDirectory"   {
+                                    if ($Text -ne $user.homedirectory) {
+                                        return $false
+                                    } else {
+                                        return $true
+                                    };break;
                                 }
                  
             }#end switch
