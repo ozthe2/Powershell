@@ -40,7 +40,7 @@ Function Create-StudentObject {
             #The mail domain including the @ eg "@wingtip.pri"
             [PARAMETER(Mandatory=$False)]
             [String]
-            $MailDomain = "@wingtip.pri",
+            $MailDomain = "@wingtip.pri"",
 
             #Path to OU where users will be created eg "OU=Users,OU=Main,DC=wingtip,DC=pri"  
             [PARAMETER(Mandatory=$False)]
@@ -50,9 +50,8 @@ Function Create-StudentObject {
 
     BEGIN {
 
-        #Log locations for the logging function parameter
-        $LogLocation = "To Be Completed"
-        $ErrorLogLocation = "To Be Completed" 
+        #Log locations
+        $LogLocation = "\\server\path\to\Logs"        
 
         #Any ACL's that cannot be set on the home directory will have the associated username
         #stored in this array for processing in the 'End {}' section of this function.
@@ -445,7 +444,7 @@ Function Create-StudentObject {
                     Write-warning "Reason: Creation of user in Active Directory failed." 
                     Write-warning "The error received was: $result"
                     write-log "ERROR: Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
-                    write-log "Error createing A.D user object. Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)." -LogExtension .err
+                    write-log "Error creating A.D user object. Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)." -LogExtension .err
                     break;
                 }
                 write-verbose "New user: $($csvuser.username) created in Active Directory."
@@ -609,6 +608,23 @@ Function Create-StudentObject {
         }#End if
 
 
+        #Email any error logs
+        $files = Get-ChildItem -Path $LogLocation -File | Where-Object {$_.Extension -eq ".err" -and $_.Name.StartsWith("NewStudentCreateU") -and $_.LastWriteTime -gt (Get-Date).AddHours(-1)}
+
+        foreach ($File in $Files) {
+            Send-MailMessage -To you@wingtip.com -From me@wingtip.com -usessl -SmtpServer email.wingtip.com -Subject "Student Create User had Failures." -Body "User creator encountered one or more errors." -Attachments ($file.DirectoryName + "\$file")    
+        }#end foreach
+
+        #Move Processed files
+        $newfilename = ("output-" + ($date = Get-Date -format yyyy.MM.dd.HH.mm.ss) + ".csv")
+        
+        try {
+            Move-OHFiles -Source "\\server\share\dataIn\output.csv" -Destination "\\server\share\dataIn\Processed\$newfilename"
+        } catch {
+            write-error "Unable to move files to new directory"
+        }
+
+        #Write final log entry for this run
         Write-Log -Message "Finished Log processing" -LogDateTime
         write-log "     *************************************"         
     }#End END
@@ -616,6 +632,5 @@ Function Create-StudentObject {
 
 
 
-# --- TESTING ---
-
-import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | select -first 15 | Import-UserCSV | Create-StudentObject -verbose
+# --- Run the script...
+import-Csv "c:\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject #-verbose
