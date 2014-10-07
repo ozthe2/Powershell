@@ -35,7 +35,7 @@ Function Create-StudentObject {
             #Path to root home dir location eg \\MyServer\Share\HomeDirs
             [PARAMETER(Mandatory=$False)]
             [String]
-            $RootHomeDirLocation = "\\MyServer\Share\HomeDirss",
+            $RootHomeDirLocation = "\\MyServer\Share\HomeDirs",
 
             #The mail domain including the @ eg "@wingtip.pri"
             [PARAMETER(Mandatory=$False)]
@@ -58,7 +58,10 @@ Function Create-StudentObject {
         #stored in this array for processing in the 'End {}' section of this function.
         #This is because for some reason the acl on home dirs fails to be set on our NAS unless there is
         #a small delay - but not always!
-        $ProcessACL=@()          
+        $ProcessACL=@() 
+        
+        Write-Log -Message "Starting Log processing" -LogDateTime
+        write-log "     *************************************"         
     }
     
     PROCESS {
@@ -67,15 +70,21 @@ Function Create-StudentObject {
             $Continue = $true 
             write-verbose "*** PRE-REQ CHECKS: START ***"
             write-verbose "-----------------------------"
+            write-log -Message "Processing user: $($csvUser.firstname) $($csvUser.Surname)" 
             #1.
             #Check to ensure that the ID number falls within the accepted range for our organisation  
             write-verbose "Checking ID number is valid for user $($csvUser.firstname) $($csvUser.Surname) ..."     
             if(!(Validate-ID -ID $csvUser.ID)) {                
                 write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)"  
-                Write-warning "Reason: I.D number is not valid."               
+                Write-warning "Reason: I.D number is not valid."
+                Write-Log -Message "ERROR: Reason: I.D number is not valid."
+                Write-Log -Message "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)" -LogExtension .err
+                Write-Log -Message "Reason: I.D number is not valid." -LogExtension .err
+                write-log "---------------------------------------"
                 break;
             }
             write-verbose "ID Number is OK"
+            Write-Log -Message "ID Number is OK"
             
             #2.
             # Check that DOB is present, if not, set to a specified valid DOB so that user processing can continue.
@@ -83,9 +92,11 @@ Function Create-StudentObject {
             #True = Missing DOB, $False = DOB present
             if (Validate-IsEmpty -Text $csvUser.dob ) {
                 Write-Warning "The Date of Birth field is missing for $($csvUser.Firstname) $($csvUser.Surname)...populating with default date of: 16/06/1666"            
+                Write-log -message "The Date of Birth field is missing for $($csvUser.Firstname) $($csvUser.Surname)...populating with default date of: 16/06/1666"
                 $csvUser.DOB = '16/06/1666'
             } else {
                 write-verbose "Date of Birth is present."
+                write-log -Message "Date of Birth is present."
             }
             
             #3.
@@ -95,20 +106,27 @@ Function Create-StudentObject {
             if ($csvuser.dob -eq $NULL) {
                 write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
                 Write-warning "Reason: Date of Birth date validation failed." 
+                write-log -message "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)." -LogExtension .err
+                Write-log -message "ERROR: Date of Birth date validation failed."
+                Write-log -message "Reason: Date of Birth date validation failed for $($csvUser.firstname) $($csvUser.Surname) " -LogExtension .err
                 break;
             }      
             
             #4.
             #Ensure that there are no strange characters in the surname
             Write-verbose "Stripping out illegal characters from surname..."
+            Write-log "Stripping out illegal characters from surname..."
             $csvUser.Surname = Convert-ToFriendlyName -Text $csvUser.Surname
             Write-verbose "Done."
+            Write-log "Done."
 
             #5.
             #Create the student username made up of the first three chars of the surname followed by the student number
             write-verbose "Creating Student username..."
+            write-log "Creating Student username..."
             $Username = Create-StudentUserName -ID $csvUser.ID -Surname $csvUser.Surname
             Write-verbose "Done.  Username is: $username" 
+            Write-Log "Done.  Username is: $username" 
             #Make the username a property of the current object
             $csvuser | add-member -NotePropertyMembers @{"Username" =$Username}
 
@@ -133,20 +151,29 @@ Function Create-StudentObject {
             $CourseGroup = ("CourseCode-" + $csvuser.coursecode.substring(0,3)) 
 
             write-verbose "Checking to see if the group $CourseGroup already exists..."
+            write-log "Checking to see if the group $CourseGroup already exists..."
             try {
                 $result = Get-ADGroup -Identity $coursegroup
                 write-verbose "Group already exists - no group creation is necessary."
+                write-log "Group already exists - no group creation is necessary."
             } catch {
                 write-warning "The group: $CourseGroup does not exist in Active Directory."
                 Write-warning "Attempting to create the group..."
+                write-log "The group: $CourseGroup does not exist in Active Directory."
+                Write-log "Attempting to create the group..."
                 $result = Create-ADGroup -GroupName $coursegroup
                 if (!($result)){
                     write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
                     Write-warning "Reason: Creation of new group in Active Directory failed." 
                     Write-warning "The error received was: $result"
+                    write-log "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)." -LogExtension .err
+                    Write-log "Reason: Creation of new group in Active Directory failed." -LogExtension .err
+                    Write-log "The error received was: $result" -LogExtension .err
+                    Write-log "ERROR: Creation of new group in Active Directory failed."
                     break;
                 } else {
                     write-verbose "New Group created succesfully"
+                    write-log "New Group created succesfully"                    
                 } 
             }#end catch
 
@@ -156,7 +183,7 @@ Function Create-StudentObject {
             $ADUser = Search-UserInAD -ID $csvUser.ID  
 
             #8a.
-            #Populate a variable with the current home directory as if the home directory needs moving, we use this var.
+            #Populate a variable with the current home directory as if the home directory needs renaming later, we use this var.
             $OldHomeDirectory = $adUser.homedirectory
                       
             write-verbose ""
@@ -181,6 +208,7 @@ Function Create-StudentObject {
                 write-verbose "*** USER FOUND IN A.D: START ***"
                 write-verbose "--------------------------------"
                 Write-verbose "User $($csvuser.id) already exists in Active Directory - skipping creation of new user."                
+                Write-log "User $($csvuser.id) already exists in Active Directory - skipping creation of new user."                
                 
                 #a. 
                 #Check account expiry
@@ -190,15 +218,20 @@ Function Create-StudentObject {
                 
                 if ((get-date $AdjustedCourseExpiryDate) -gt (get-date $DateADAccExpires)) {
                     write-warning "Expiry date requires adjustment"
+                    write-log "Expiry date requires adjustment"
                     try {
                         Set-ADAccountExpiration -Identity $username -DateTime $AdjustedCourseExpiryDate.AddDays("1") -ea Stop -ev x                       
                         write-verbose ("Changed expiration date from: " + (get-date $DateADAccExpires -Format "dd/MM/yyyy") + " to: " + (get-date $AdjustedCourseExpiryDate -Format "dd/MM/yyyy"))
+                        write-log ("Changed expiration date from: " + (get-date $DateADAccExpires -Format "dd/MM/yyyy") + " to: " + (get-date $AdjustedCourseExpiryDate -Format "dd/MM/yyyy"))
                     } catch {
                         write-warning "An error occured trying to change the account expiration date"
+                        write-log "ERROR: An error occured trying to change the account expiration date for user: $username"
+                        write-log "An error occured trying to change the account expiration date for user: $username" -LogExtension .err
                         $x.errormessage                        
                     }#end catch
                 } else {
                     write-verbose "Account expiry: OK"
+                    write-log "Account expiry: OK"
                 }#end else
 
                 #b. 
@@ -206,13 +239,18 @@ Function Create-StudentObject {
                 try {
                     if (!($aduser | Get-ADAttribute -text 'student' -Attribute employeeType -ea Stop -ev x)) {
                         write-verbose "EmployeeType is not correct: Setting EmployeeType..."
+                        write-log "EmployeeType is not correct: Setting EmployeeType..."
                         $aduser | Set-ADAttribute -Text 'student' -Attribute employeeType -ea Stop -ev x
                         write-verbose "EmployeeType: OK"
+                        write-log "EmployeeType: OK"
                     } else {
                         write-verbose "EmployeeType: OK"
+                        write-log "EmployeeType: OK"
                     }
                 } catch {
                     write-error "An error occured trying to check \ set the employeeType property."
+                    write-log "ERROR: An error occured trying to check \ set the employeeType property."
+                    write-log "ERROR: An error occured trying to check \ set the employeeType property." -LogExtension .err
                 }
 
                 #c.
@@ -220,13 +258,18 @@ Function Create-StudentObject {
                 try {
                     if (!($aduser | Get-ADAttribute -text $($csvuser.displayname) -Attribute DisplayName -ea Stop -ev x)) {
                         write-verbose "DisplayName is not correct: Setting DisplayName..."
+                        write-log "DisplayName is not correct: Setting DisplayName..."
                         $aduser | Set-ADAttribute -Text $csvuser.displayname -Attribute DisplayName -ea Stop -ev x
-                        write-verbose "DisplayName: OK"
+                        write-verbose "DisplayName: OK. Changed from: $($aduser.displayname) to: $($csvuser.Displayname)"
+                        write-log "DisplayName: OK. Changed from: $($aduser.displayname) to: $($csvuser.Displayname)"
                     } else {
                         write-verbose "DisplayName: OK"
+                        write-log "DisplayName: OK"
                     }
                 } catch {
                     write-error "An error occured trying to check \ set the Display Name property."
+                    write-log "ERROR: An error occured trying to check \ set the Display Name property." -LogExtension .err
+                    write-log "An error occured trying to check \ set the Display Name property for $username." -LogExtension .err
                 }
             
                 #d.
@@ -234,13 +277,18 @@ Function Create-StudentObject {
                 try {
                     if (!($aduser | Get-ADAttribute -text $($csvuser.firstname) -Attribute GivenName -ea Stop -ev x)) {
                         write-verbose "GivenName is not correct: Setting GivenName..."
+                        write-log "GivenName is not correct: Setting GivenName..."
                         $aduser | Set-ADAttribute -Text $csvuser.firstname -Attribute GivenName -ea Stop -ev x
-                        write-verbose "GivenName: OK."
+                        write-verbose "GivenName: OK.  Changed from: $($aduser.givenname) to: $($csvuser.firstname)"
+                        write-log "GivenName: OK. Changed from: $($aduser.givenname) to: $($csvuser.firstname)"
                     } else {
                         write-verbose "GivenName: OK"
+                        write-log "GivenName: OK"
                     }
                 } catch {
-                    write-error "An error occured trying to check \ set the Given Name property."
+                    write-error "An error occurred trying to check \ set the Given Name property."
+                    write-log "ERROR: An error occurred trying to check \ set the Given Name property for $username." -LogExtension .err
+                    write-log "ERROR: An error occurred trying to check \ set the Given Name property for $username."
                 }
 
                 #e.
@@ -248,38 +296,51 @@ Function Create-StudentObject {
                 try {
                     if (!($aduser | Get-ADAttribute -text $($csvuser.surname) -Attribute Surname -ea Stop -ev x)) {
                         write-verbose "Surname is not correct: Setting Surname..."
+                        write-log "Surname is not correct: Setting Surname..."
                         $aduser | Set-ADAttribute -Text $csvuser.surname -Attribute Surname -ea Stop -ev x
-                        write-verbose "Surname: OK."
+                        write-verbose "Surname: OK. Changed from: $($aduser.surname) to: $($csvuser.surname)"
+                        write-log "Surname: OK. Changed from: $($aduser.surname) to: $($csvuser.surname)"
                     } else {
                         write-verbose "Surname: OK"
+                        write-log "Surname: OK."
                     }
                 } catch {
                     write-error "An error occured trying to check \ set the Surname property."
+                    write-log "ERROR: An error occured trying to check \ set the Surname property."
+                    write-log "An error occured trying to check \ set the Surname property for $username." -LogExtension .err
                 }
                 
                 #f. 
                 #Test for name change - if surname on csv data is different to A.D account then various changes are required...                
                 if ($csvuser.username -ne $ADUser.samaccountname) {
                     write-warning "The surname has changed!  Adjusting A.D user account..."
+                    write-log "The surname has changed!  Adjusting A.D user account..."
                     try {
                         Set-ADUser -Identity $aduser.samaccountname -samaccountname $csvuser.username -userprincipalname $csvuser.userprincipalname -ea Stop -ev x
                         write-verbose "SAMAccountName and UserPrincipal name changed successfully"
+                        write-log "SAMAccountName and UserPrincipal name changed successfully"
                     }
                     catch {
                         write-error "An error occured trying to use 'Set-ADUser'"
                         write-error "Unable to continue processing user: $username "
                         write-error $x.errorrecord
+                        write-log "ERROR: An error occured trying to use 'Set-ADUser' for $username"
+                        write-log "An error occured trying to use 'Set-ADUser' for $username. Processing aborted." -LogExtension .err
                         break;
                     }
                     try {
                         write-verbose "Attempting to rename Active Directory User Object..."                        
+                        write-log "Attempting to rename Active Directory User Object..."                        
                         Rename-ADObject -Identity $aduser.objectguid -NewName $csvuser.username -ea Stop -ev x
                         write-verbose "Successfully renamed A.D user object from $($aduser.samaccountname) to $($csvuser.username)"
+                        write-log "Successfully renamed A.D user object from $($aduser.samaccountname) to $($csvuser.username)"
                     }
                     catch {
                         write-error "An error occurred trying to rename the A.D user object."
                         write-error "Processing of this user has been aborted."
                         write-error $x.errorrecord
+                        write-log "ERROR: An error occurred trying to rename the A.D user object."
+                        write-log "An error occurred trying to rename the A.D user object for $username. Processing aborted."
                         break;
                     }
                     #Now update the Active Directory user object variable with new vproperty values..                    
@@ -291,13 +352,18 @@ Function Create-StudentObject {
                 try {
                     if (!($aduser | Get-ADAttribute -text $($csvuser.emailaddress) -Attribute Email -ea Stop -ev x)) {
                         write-verbose "Email is not correct: Setting new Email address..."
+                        write-log "Email is not correct: Setting new Email address..."
                         $aduser | Set-ADAttribute -Text $csvuser.emailaddress -Attribute Email -ea Stop -ev x
-                        write-verbose "Email: OK."
+                        write-verbose "Email: OK. Changed to: $($csvuser.emailaddress)"
+                        write-log "Email: OK. Changed to: $($csvuser.emailaddress)"
                     } else {
                         write-verbose "Email: OK"
+                        write-log "Email: OK."
                     }
                 } catch {
                     write-error "An error occured trying to check \ set the email property."
+                    write-log "ERROR: An error occured trying to check \ set the email property." 
+                    write-log "An error occured trying to check \ set the email property." -LogExtension .err
                 }
 
                 #h. 
@@ -305,13 +371,18 @@ Function Create-StudentObject {
                 try {
                     if (!($aduser | Get-ADAttribute -text "G:" -Attribute HomeDrive -ea Stop -ev x)) {
                         write-warning "Home Drive - Drive letter is not correct: Setting drive letter..."
+                        write-log "Home Drive - Drive letter is not correct: Setting drive letter..."
                         $aduser | Set-ADAttribute -Text "G:" -Attribute HomeDrive -ea Stop -ev x
                         write-verbose "Drive letter: OK."
+                        write-log "Drive letter: OK."
                     } else {
                         write-verbose "Drive letter: OK"
+                        write-log "Drive letter: OK."
                     }
                 } catch {
                     write-error "An error occured trying to check \ set the Homedrive property."
+                    write-log "ERROR: An error occured trying to check \ set the Homedrive property."
+                    write-log "An error occured trying to check \ set the Homedrive property for $Username." -LogExtension .err
                 }
 
                 #i. 
@@ -319,13 +390,18 @@ Function Create-StudentObject {
                 try {
                     if (!($aduser | Get-ADAttribute -text $csvuser.homedirectory -Attribute HomeDirectory -ea Stop -ev x)) {
                         write-warning "Home Directory Path - path is not correct: Setting path..."
+                        write-log "Home Directory Path - path is not correct: Setting path..."
                         $aduser | Set-ADAttribute -Text $csvuser.homedirectory -Attribute HomeDirectory -ea Stop -ev x
                         write-verbose "Home Directory Path: OK."
+                        write-log "Home Directory Path: OK."
                     } else {
                         write-verbose "Home Directory Path: OK"
+                        write-log "Home Directory Path: OK."
                     }
                 } catch {
                     write-error "An error occured trying to check \ set the Homedrive property."
+                    write-log "ERROR: An error occured trying to check \ set the Homedrive property."
+                    write-log "An error occured trying to check \ set the Homedrive property for $Username." -LogExtension .err
                 }
 
                 #j. Rename home dir if required
@@ -333,11 +409,15 @@ Function Create-StudentObject {
                 if (((!(test-path $csvuser.homedirectory)) -and ((test-path $OldHomeDirectory)))){
                     try {
                         write-warning "Home directory requires renaming - Re-naming home directory..."
+                        write-log "Home directory requires renaming - Re-naming home directory..."
                         Rename-Directory -Path $OldHomeDirectory -NewName $aduser.samaccountname -ea Stop -ev x
-                        write-verbose "Homedirectory renamed from $OldHomeDirectory to $($csvuser.homedirectory)"
+                        write-verbose "Home directory renamed from $OldHomeDirectory to $($csvuser.homedirectory)"
+                        write-log "Home directory renamed from $OldHomeDirectory to $($csvuser.homedirectory)"
                     }catch {
                         write-error "An error occurred trying to change the name of the home directory."
                         write-error "Processing will continue but you will need to manually re-name the folder"
+                        write-log "ERROR: An error occurred trying to change the name of the home directory."
+                        write-log "An error occurred trying to change the name of the home directory for $Username." -LogExtension .err
                     }                    
                 }#end if
 
@@ -354,7 +434,9 @@ Function Create-StudentObject {
                 write-verbose "*** CREATE NEW USER: START ***"
                 write-verbose "------------------------------"
                 Write-warning "The user: $($csvuser.Username) cannot be found in Active Directory."
+                Write-log "The user: $($csvuser.Username) cannot be found in Active Directory."
                 Write-verbose "Creating new user account..."
+                Write-log "Creating new user account..."
                 # Create a new user in Active Directory
                 $Result = Create-NewADUser -UserObject $csvuser
                 #If user creation failed...
@@ -362,6 +444,8 @@ Function Create-StudentObject {
                     write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
                     Write-warning "Reason: Creation of user in Active Directory failed." 
                     Write-warning "The error received was: $result"
+                    write-log "ERROR: Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
+                    write-log "Error createing A.D user object. Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)." -LogExtension .err
                     break;
                 }
                 write-verbose "New user: $($csvuser.username) created in Active Directory."
@@ -369,11 +453,16 @@ Function Create-StudentObject {
                 if (!(Test-Path ($csvuser.HomeDirectory))) {                    
                       try {
                         write-verbose "Attempting to create Home Directory: $($csvuser.HomeDirectory)"
+                        write-log "Attempting to create Home Directory: $($csvuser.HomeDirectory)"
                         New-Item ($csvuser.HomeDirectory) -type directory -ea Stop -ev x | Out-Null
                         write-verbose "Directory successfully created."
+                        write-log "Directory successfully created."
                       } catch {
                             write-warning "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)."
                             Write-warning "Reason: Unable to create home directory: $($csvuser.HomeDirectory)."
+                            write-log "ERROR: Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname). Unable to create Home Dir"
+                            write-log "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)." -LogExtension .err
+                            Write-log "Reason: Unable to create home directory: $($csvuser.HomeDirectory)." -LogExtension .err
                             break;
                       }   
                 } else {
@@ -381,17 +470,26 @@ Function Create-StudentObject {
                     Write-warning "Reason: The home directory $($csvuser.HomeDirectory) already exists."
                     Write-warning "This should be a new user so the directory should not exist!" 
                     Write-warning "Processing is, however,  partially complete - the user has been created in Active directory."
+                    Write-log "ERROR: The home directory $($csvuser.HomeDirectory) already exists."
+                    write-log "Skipping processing of user: $($csvUser.firstname) $($csvUser.Surname)." -LogExtension .err
+                    Write-log "Reason: The home directory $($csvuser.HomeDirectory) already exists." -LogExtension .err
+                    Write-log "This should be a new user so the directory should not exist!" -LogExtension .err
+                    Write-log "Processing is, however,  partially complete - the user has been created in Active directory." -LogExtension .err
                     break;
                   }
 
                 #Set the ACL for the new home directory
                 try {
                     Write-verbose "Setting ACL on directory..."
+                    Write-log "Setting ACL on directory..."
                     $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain wingtip -ea Stop -ev x
                     Write-verbose "ACL: Set."
+                    Write-log "ACL: Set."
                 } catch {                    
                     Write-warning "Reason: Unable to set ACL for $($csvuser.username) on directory $($csvuser.homedirectory)"
                     write-warning "Will attempt to try again at the end of all user-data processing."
+                    Write-log "ERROR: Reason: Unable to set ACL for $($csvuser.username) on directory $($csvuser.homedirectory)"
+                    write-log "ERROR: Will attempt to try again at the end of all user-data processing."                    
                     #Add the user to the array for post processing
                     $ProcessACL+=$Username;
                 }
@@ -432,15 +530,20 @@ Function Create-StudentObject {
             foreach ($MandatoryGroup in $CourseGroups ) {
                 if ($GroupMembership -notcontains $MandatoryGroup) {
                     write-verbose "Adding user to group: $MandatoryGroup"
+                    write-log "Adding user to group: $MandatoryGroup"
                     $result = $MandatoryGroup | Add-UserToADGroup -UserAccount $csvUser.username
                     if ($result) {
                         write-verbose "Successfully added user to group:$MandatoryGroup"
+                        write-log "Successfully added user to group:$MandatoryGroup"
                     } else {
                         write-warning "An error occurred - unable to add user: $Username to group: $CourseGroup"
                         write-warning "The error returned was : $result"
+                        write-log "ERROR: An error occurred - unable to add user: $Username to group: $CourseGroup"
+                        write-log "An error occurred - unable to add user: $Username to group: $CourseGroup" -LogExtension .err
                     }#End else
                 } else {
                     write-verbose "User is already a group member of: $MandatoryGroup"
+                    write-log "User is already a group member of: $MandatoryGroup"
                 }#end else
             }#end foreach
 
@@ -448,20 +551,26 @@ Function Create-StudentObject {
             #Enable the user account
             if ($ADUser.enabled) {
                 write-verbose "User account is already enabled"
+                write-log "User account is already enabled"
             } else {
                 write-verbose "Account is disabled.  Attempting to enable user account..."
+                write-log "Account is disabled.  Attempting to enable user account..."
                 try {
                     Enable-ADAccount -Identity $aduser.samaccountname -ea Stop -ev x
                     write-verbose "Account enabled for $username"
+                    write-log "Account enabled for $username"
                 } catch {
                     write-error "Unable to enable the user account."
                     write-error "The error was: $x.errorrecord"
+                    write-log "Unable to enable the user account."
+                    write-log "Unable to enable the user account." -LogExtension .err
                 }
             } #end else
 
            
               
             write-verbose ""  
+            write-log "----------------------------------"
         } # End Foreach 
 
     } # End process
@@ -473,6 +582,7 @@ Function Create-StudentObject {
         if ($ProcessACL.count -gt 0 ) {           
             $TimeNow=get-date -Format "HH:mm"      
             Write-output "Waiting 5 minutes before attempting ACL set on home directories.  Time Now: $TimeNow" 
+            Write-log "Waiting 5 minutes before attempting ACL set on home directories.  Time Now: $TimeNow" 
             # 5 Minute delay...  
             start-sleep -s 300
 
@@ -482,15 +592,25 @@ Function Create-StudentObject {
                 $HomeDirectory = ($RootHomeDirLocation + "\$user")
                 try {
                     Write-verbose "Attempting to set ACL on directory for user: $user on $HomeDirectory"
+                    Write-log "Attempting to set ACL on directory for user: $user on $HomeDirectory"
                     $User | Set-DirACL -DirectoryToModify $HomeDirectory -ACLToAdd Modify -Domain wingtip -ea Stop -ev x
                     Write-verbose "ACL set successfully."
+                    Write-log "ACL set successfully."
                 } catch {                    
                     Write-warning "Reason: Unable to set ACL for $user on directory $HomeDirectory"
                     write-warning "This was the second attempt that failed, further investigation will be necessary."
+                    Write-log "ERROR: Reason: Unable to set ACL for $user on directory $HomeDirectory"
+                    write-log "ERROR: This was the second attempt that failed, further investigation will be necessary."
+                    Write-log "Unable to set ACL for $user on directory $HomeDirectory" -LogExtension .err
+                    write-log "This was the second attempt that failed, further investigation will be necessary." -LogExtension .err
                     break;
                 }#End catch
             }#End foreach
         }#End if
+
+
+        Write-Log -Message "Finished Log processing" -LogDateTime
+        write-log "     *************************************"         
     }#End END
 } # End Function
 
@@ -499,14 +619,3 @@ Function Create-StudentObject {
 # --- TESTING ---
 
 import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | select -first 15 | Import-UserCSV | Create-StudentObject -verbose
-
-
-#help Create-StudentObject -full
-
-
-<#
-To Do:
-------
-1. Include logging (write-Log)
-
-#>
