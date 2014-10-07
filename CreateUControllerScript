@@ -2,7 +2,7 @@
 .Synopsis
 Creates new students in A.D
 .DESCRIPTION
-This is the 'Master' cmdlet.  You can also pipe in a csv as long as the CSV headers match the parameter names.
+This is the 'Master' cmdlet.
 Creates new students in A.D, assigns Papercut credit, adds to correct groups, configures AD. Attribs. creates HomeDir etc etc
 .PARAMETER CSVUserObject
 This is the output from 'Import-UserCSV' cmdlet and is a user object created from an imported CSV file.
