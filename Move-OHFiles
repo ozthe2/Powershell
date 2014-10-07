@@ -1,0 +1,55 @@
+<#
+.Synopsis
+Moves an item from one location to another.
+.DESCRIPTION
+The Move-Item cmdlet moves an item, including its properties, contents, and child items, from one location to another location. The locations must be supported by the same provider. For example, it can move a file or subdirectory from one directory to another or move a registry subkey from one key to another. When you move an item, it is added to the new location and deleted from its original location.
+.PARAMETER Source
+Specifies the path to the current location of the items.
+.PARAMETER Destination
+Specifies the path to the location where the items are being moved. If you specify a new file name then the file will also be renamed.
+.EXAMPLE
+Move-OHFiles -Source "C:\output.csv","C:\output2.csv" -Destination C:\OHTest
+The above example moves output.csv and output2.csv to the directory 'OHTest'
+.EXAMPLE
+Move-OHFiles -Source "C:\output.csv" -Destination C:\OHTest\output2.csv
+The above example moves output.csv to the OHTest directory and renames the file to output2.csv
+.NOTES
+Version: 1.0
+Date: 17 September 2014
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+.LINK
+move-item
+#>
+function Move-OHFiles {
+[CmdletBinding()]
+ [OutputType([bool])]
+    Param
+    (
+        # Param1
+        [Parameter(Mandatory=$true, 
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$true,  
+                   Position=0)]                      
+        [string[]]
+        $Source,
+        [Parameter(Mandatory=$true)]
+        [String]
+        $Destination
+    )
+
+    BEGIN {}
+
+    PROCESS {
+        foreach ($SourceLocation in $Source) {       
+            Move-Item  $SourceLocation $Destination -ea Stop -ev x
+        }
+    }#end process
+
+    END {}
+
+}#end function
+
