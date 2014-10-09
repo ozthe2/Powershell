@@ -14,7 +14,7 @@ False
 
 The above example returns true if the property is successfully set otherwise false is returned.
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 2 October 2014
 Created By: OH
 .LINK
