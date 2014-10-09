@@ -16,7 +16,7 @@ False
 
 The above example returns true or false depending on if the 'EmployeeType' attribute has been set to 'MilkDrinker' or not.  In this case, GreenD has the attribute set but BloggsF does not.
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 2 October 2014
 Created By: OH
 .LINK
