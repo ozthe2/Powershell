@@ -21,11 +21,11 @@ function Adjust-PapercutAccountBalance {
 
             The above example credits 1.50 to the existing balance of the user: GreenD and adds a comment to the Transaction History of "Added by Powershell"
 	    .EXAMPLE
-            Adjust-PapercutAccountBalance -PapercutServer MyServer -UserAccount GreenD -Amount -2.00 -Comment "Added by Powershell"
+            Adjust-PapercutAccountBalance -PapercutServer MyServer -UserAccount GreenD -Amount -2.00
 
-            The above example debits 2.00 from the existing balance of the user: GreenD and adds a comment to the Transaction History of "Added by Powershell"
+            The above example debits 2.00 from the existing balance of the user: GreenD and adds a comment to the Transaction History of "Balance adjusted by Powershell"
         .NOTES
-            Version: 1.0
+            Version: 2.0
             Date: 18 September 2014
             Created By: OH
         .LINK
@@ -37,17 +37,19 @@ function Adjust-PapercutAccountBalance {
     Param
     (
         # Param1
-        [Parameter(Mandatory=$true,
+        [Parameter(Mandatory=$false,
                    ValueFromPipeline=$false,
                    ValueFromPipelineByPropertyName=$false,  
                    Position=0)] 
         [string]
-        $PapercutServer,
+        $PapercutServer = 'server1.wingtip.com',
 
         # Param2
-        [parameter(Mandatory=$true)] 
+        [parameter(Mandatory=$true,
+                   ValueFromPipeline=$true,
+                   ValueFromPipelineByPropertyName=$true)] 
         [Alias("SAMAccountName","UserName","Name")]                        
-        [String]        
+        [String[]]        
         $UserAccount,
 
         # Param3
@@ -62,26 +64,22 @@ function Adjust-PapercutAccountBalance {
         [AllowNull()]        
         [string]
         $Comment = "Balance adjusted via Powershell"
-
-        
     )
       
     BEGIN {
-        
-        try {
-            $session = New-PSSession -ComputerName $PapercutServer -ea Stop -ev x
-        } catch {
-            Write-output $x
-        }
+        $session = New-PSSession -ComputerName $PapercutServer -ea Stop -ev x  
 
         write-verbose "Setting current path.."
         invoke-command -Session $session -ScriptBlock {set-location "C:\Program Files (x86)\Papercut MF\Server\Bin\Win"}
-    
-    
-    } # end begin  
+    } # end begin 
+     
     PROCESS {        
-        write-verbose "Applying $Amount to the print balance of user: $UserAccount"        
-        invoke-command -Session $session -ScriptBlock {param($Acc,$amt,$Msg)& cmd.exe /c server-command.exe adjust-user-account-balance $acc $amt $Msg} -ArgumentList $UserAccount,$Amount,$Comment -ea Stop -ev x
+        write-verbose "Applying $Amount to the print balance of user: $UserAccount"  
+        try {      
+            invoke-command -Session $session -ScriptBlock {param($Acc,$amt,$Msg)& cmd.exe /c server-command.exe adjust-user-account-balance $acc $amt $Msg} -ArgumentList $UserAccount,$Amount,$Comment -ea Stop -ev x
+        } catch {
+            write-error $x
+        }
     } # End process
 
     END {
