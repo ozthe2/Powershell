@@ -10,7 +10,7 @@ import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","
 
 The above example reads in a csv file called 'output.csv and uses the csv headers as shown by the -Header parameter.  The first 12 rows are selected and output as objects.
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 17 September 2014
 Created By: OH
 .LINK
@@ -31,7 +31,6 @@ Function Import-UserCSV {
         [psobject[]]$CSVData
     )
 
-
     BEGIN {}
 
     PROCESS {
@@ -42,14 +41,12 @@ Function Import-UserCSV {
                             'DOB' = $CSVData.DOB;
                             'CourseCode' = $CSVData.CourseCode;
                             'CourseDescription' = $CSVData.CourseDescription;
-                            'UnknownField1' = $CSVData.UnknownField1;
+                            'AcademicYear' = $CSVData.AcademicYear;
                             'CourseStart' = $CSVData.CourseStart;
                             'CourseEnd' = $CSVData.CourseEnd;
                             'UnknownField2' = $CSVData.UnknownField2;
                             'UnknownField3' = $CSVData.UnknownField3
                              }# end props
-
-                             
     
         $obj=New-Object -typename psobject -Property $props
     
