@@ -17,7 +17,7 @@ True
 
 The above example checks the user 'GreenD' to see if they are a member of the TeaDrinkers and MilkDrinkers group.  True or false is returned for each group in the pipeline.
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 26 September 2014
 Created By: OH
 .LINK
