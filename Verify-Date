@@ -18,7 +18,7 @@ verify-date -date "10/30/2014"
 The above example converts a date from U.S format to U.K long date.
 
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 24 September 2014
 .LINK
 http://www.fearthemonkey.co.uk
