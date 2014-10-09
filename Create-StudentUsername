@@ -12,7 +12,7 @@ Create-StudentUserName -ID 12345678 -Surname Bloggs
 
 BLO12345678
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 19 September 2014
 .LINK
 http://www.fearthemonkey.co.uk
