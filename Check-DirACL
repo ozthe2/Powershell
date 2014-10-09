@@ -26,7 +26,7 @@ foreach ($object in $results) {
 
 The above example shows how you might use this in a script.  Three usernames are piped to Remediate-DirACL and if 'Modify' permissions are already set for any of the piped users on the specified directory then do something...
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 16 September 2014
 Created By: OH
 .LINK
