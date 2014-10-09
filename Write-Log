@@ -58,7 +58,7 @@ Write-Log -message "****************************************" -LogName test -Log
 .INPUTS
     None.  You cannot pipe objects to Write-Log
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 8 September 2014
 Created By: OH
 .LINK
@@ -82,10 +82,10 @@ https://github.com/ozthe2/Powershell.git
         # Param2
         [parameter(Mandatory=$false)]                   
         [String]
-        $LogLocation = "c:\Powershell\Logs",
+        $LogLocation = "\\server\path\to\Logs",
 
         # Param3
-        [parameter(Mandatory=$true)]
+        [parameter(Mandatory=$false)]
         [ValidateScript({
             # Let's have a more meaningful error message for those of us who don't read regex!
             If ($_ -match "^[a-zA-Z0-9_ .-]+$") {
@@ -95,9 +95,9 @@ https://github.com/ozthe2/Powershell.git
                 Throw "The logname '$_' must contain at least one character and can only contain alphanumeric characters or the symbols _ or . or -"
             }
         })]  
-        [ValidateLength(1,25)]       
+        [ValidateLength(1,35)]       
         [String]
-        $LogName,
+        $LogName = "NewStudentCreateU",
 
         #Param4
         [parameter(Mandatory=$false)]
@@ -138,7 +138,7 @@ https://github.com/ozthe2/Powershell.git
         # Date in logname:
         # By default, the date will be added to the name of the log file unless the switch -DoNotAddDateToLogName has been specified.        
         if (!($DoNotAddDateToLogName)) {            
-            $logname += (Get-Date).ToString('_dd-MM-yyyy')
+            $logname += (Get-Date).ToString("_dd-MM-yyyy")
         }  
         
         #Logname file extension:
@@ -152,18 +152,19 @@ https://github.com/ozthe2/Powershell.git
     } #End Begin
     
     Process {  
+        $now = get-date -Format dd/MM/yyyy
         
         #Write the log...
         if ($Overwrite) { 
             if ($LogDateTime) {
-                $message + (Get-Date) | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -force
+                $message + " " + (Get-Date -Format dd-MMMM-yyyy_HH.mm.ss) | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -force
             } else {
                 $Message | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -force                       
               }  
         }
         else {
-            if ($LogDateTime) {
-                $message + (Get-Date) | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -Append                
+            if ($LogDateTime)  {
+                $message + " " + (Get-Date -Format dd-MMMM-yyyy_HH.mm.ss) | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -Append                                              
             } else {                        
                 $Message | Out-File -FilePath (Join-Path -Path $LogLocation -ChildPath $LogName) -Append
               }      
