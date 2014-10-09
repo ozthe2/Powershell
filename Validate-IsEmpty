@@ -16,7 +16,7 @@ function Validate-IsEmpty
 		.OUTPUTS
 			System.Boolean
         .NOTES
-            Version: 1.0
+            Version: 2.0
             Date: 17 September 2014
             Created By: OH
         .LINK
