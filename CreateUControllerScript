@@ -692,7 +692,7 @@ Function Create-StudentObject {
         $newfilename = ("output-" + ($date = Get-Date -format yyyy.MM.dd.HH.mm.ss) + ".csv")
         
         try {
-            Move-OHFiles -Source "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\output.csv" -Destination "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\Processed\$newfilename" -ea SilentlyContinue
+            Move-OHFiles -Source "\\server\path\to\output.csv" -Destination "\\server\path\to\Processed\$newfilename" -ea SilentlyContinue
         } catch {
             write-error "Unable to move output.csv to new directory"
             Write-Log "Unable to move output.csv to new directory" -LogExtension .err
