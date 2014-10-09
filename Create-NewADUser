@@ -8,7 +8,7 @@ function Create-NewADUser {
         ValueFromPipelineByPropertyName=$True)]        
         [psobject[]]$UserObject
     )
-
+    
     $Parms=@{
         AccountExpirationDate = $UserObject.AccountExpirationDate;
         AccountPassword =  $UserObject.AccountPassword;
