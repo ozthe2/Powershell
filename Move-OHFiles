@@ -14,7 +14,7 @@ The above example moves output.csv and output2.csv to the directory 'OHTest'
 Move-OHFiles -Source "C:\output.csv" -Destination C:\OHTest\output2.csv
 The above example moves output.csv to the OHTest directory and renames the file to output2.csv
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 17 September 2014
 Created By: OH
 .LINK
@@ -52,4 +52,3 @@ function Move-OHFiles {
     END {}
 
 }#end function
-
