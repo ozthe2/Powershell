@@ -19,7 +19,7 @@ The above example sets read-only NTFS permissions on the directory \\Server\Shar
 
 The above example sets 'Modify' permissions on the directory \\Server\Share\Dir for the domain user accounts of BloggsF and GreenD.
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 17 September 2014
 Created By: OH
 .LINK
@@ -132,8 +132,3 @@ function Set-DirACL {
     END {}
 
 }# End Function
-
-#\\Chidata\ClassDocs\Students\ALB49166756
-
-
-#Set-DirACL -UserAccount ALB49166756 -DirectoryToModify \\Chidata\ClassDocs\Students\ALB49166756 -ACLToAdd Modify -Domain chi
