@@ -14,7 +14,7 @@ Surname
 The above command will stripout all of the illegal characters leaving the result of: Surname
 
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 22 September 2014
 .LINK
 http://www.fearthemonkey.co.uk
