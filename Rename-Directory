@@ -16,7 +16,7 @@ import-csv c:\rename.csv | rename-directory
 
 The csv file contains the headers of: path and newname followed by the csv data, each line in the csv is processed and directories renamed.
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 3 October 2014
 Created By: OH
 .LINK
