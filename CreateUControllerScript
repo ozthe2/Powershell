@@ -11,7 +11,7 @@ import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","
 .INPUTS
 Accepts the PSObject output from Import-UserCSV
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 17 September 2014
 Created By: OH
 .LINK
@@ -51,7 +51,7 @@ Function Create-StudentObject {
     BEGIN {
 
         #Log locations (Do not append a backslash)
-        $LogLocation = "\\server\Logs"        
+        $LogLocation = "\\server\path\to\Logs"        
 
         #Any ACL's that cannot be set on the home directory will have the associated username
         #stored in this array for processing in the 'End {}' section of this function.
@@ -67,6 +67,7 @@ Function Create-StudentObject {
         $NoOfACLsNotSetOnFirstAttempt = 0
         $NoOfACLsFixedOnSecondAttempt = 0
         $NoOfErrors = 0
+        $GroupsCreated = 0
         
         Write-Log -Message "Starting Log processing" -LogDateTime
         write-log "     *************************************"         
@@ -155,7 +156,8 @@ Function Create-StudentObject {
             $csvuser | add-member -NotePropertyMembers @{"AccountPassword" = (ConvertTo-SecureString (get-date ($csvUser.dob) -format "ddMMyyyy") -AsPlainText -force)}
             $csvuser | add-member -NotePropertyMembers @{"DisplayName" = ($CSVUser.Surname + ", " + $CSVUser.Firstname + " (" + $CSVUser.id + ")")}
             $csvuser | add-member -NotePropertyMembers @{"UserPrincipalName" = ($csvuser.username + $MailDomain)}                         
-       
+            #The 'PhysicalDeliveryOfficeName' attribute is the name of the A.D attrib we use for storing the Academic year in.
+            $csvuser | add-member -NotePropertyMembers @{"PhysicalDeliveryOfficeName" = $csvuser.AcademicYear}                         
             #7.
             #Check to see if the CourseCode-xxx group exists first, otherwise create it...
             #Create the correct Course group name as per our naming standards for Active Directory.                
@@ -185,7 +187,8 @@ Function Create-StudentObject {
                     break;
                 } else {
                     write-verbose "New Group created succesfully"
-                    write-log "New Group created succesfully"                    
+                    write-log "New Group created succesfully"
+                    $GroupsCreated++                    
                 } 
             }#end catch
 
@@ -448,7 +451,10 @@ Function Create-StudentObject {
 
                 #k. 
                 #Add Papercut print credit
-                #Code.....
+                #Test Code.....
+                #write-output "CSV USER OBJECT YEAR: $($csvuser.PhysicalDeliveryOfficeName)"
+                #write-output ""
+                #write-output "ADUSER OBJECT YEAR: $($aduser.PhysicalDeliveryOfficeName)"
                                
                 write-verbose ""
             } #end if         
@@ -660,15 +666,16 @@ Function Create-StudentObject {
         $StatsMessage += "Number of new A.D Accounts created: $NoOfNewADAccounts`n"
         $StatsMessage += "Number of existing A.D Accounts: $NoOfExistingAccounts`n"
         $StatsMessage += "Number of missing DOB's fixed: $NoOfMissingDOBFixed`n"
+        $StatsMessage += "Number of new groups created: $GroupsCreated`n"
         $StatsMessage += "Number of ACLS not set on first attempt: $NoOfACLsNotSetOnFirstAttempt`n"
-        $StatsMessage += "Number of ACLS fixed on second attempt: $NoOfACLsFixedOnSecondAttempt`n"
+        $StatsMessage += "`nNumber of ACLS fixed on second attempt: $NoOfACLsFixedOnSecondAttempt`n"
 
         if ($ErrorLogExists) {
             #Email any error logs
             $files = Get-ChildItem -Path $LogLocation -File | Where-Object {$_.Extension -eq ".err" -and $_.Name.StartsWith("NewStudentCreateU") -and $_.LastWriteTime -gt (Get-Date).AddHours(-1)}
 
             foreach ($File in $Files) {
-                Send-MailMessage -To you@wingtip.com -From server@wingtip.com -usessl -SmtpServer Chichester-ac-uk.mail.protection.outlook.com -Subject "Student Create User: FAIL." -Body $StatsMessage -Attachments ($file.DirectoryName + "\$file")    
+                Send-MailMessage -To you@wingtip.com -From me@wingtip.com -usessl -SmtpServer mail.wingtip.com -Subject "Student Create User: FAIL." -Body $StatsMessage -Attachments ($file.DirectoryName + "\$file")    
             }#end foreach
             Write-Log -Message $StatsMessage -LogExtension .err
         } else {
@@ -676,7 +683,7 @@ Function Create-StudentObject {
             $files = Get-ChildItem -Path $LogLocation -File | Where-Object {$_.Extension -eq ".log" -and $_.Name.StartsWith("NewStudentCreateU") -and $_.LastWriteTime -gt (Get-Date).AddHours(-1)}
 
             foreach ($File in $Files) {
-                Send-MailMessage -To me@wingtip.com -From server@wingtip.com -usessl -SmtpServer mailwingtip.com -Subject "Student Create User :SUCCESS." -Body $StatsMessage -Attachments ($file.DirectoryName + "\$file")    
+                Send-MailMessage -To you@wingtip.com -From me@wingtip.com -usessl -SmtpServer mail.wingtip.com -Subject "Student Create User: SUCCESS." -Body $StatsMessage -Attachments ($file.DirectoryName + "\$file")    
             }#end foreach
             Write-Log -Message $StatsMessage
         }
@@ -685,7 +692,7 @@ Function Create-StudentObject {
         $newfilename = ("output-" + ($date = Get-Date -format yyyy.MM.dd.HH.mm.ss) + ".csv")
         
         try {
-            Move-OHFiles -Source "\\server\share\folder\output.csv" -Destination "\\server\share\folder\Processed\$newfilename" -ea SilentlyContinue
+            Move-OHFiles -Source "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\output.csv" -Destination "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\Processed\$newfilename" -ea SilentlyContinue
         } catch {
             write-error "Unable to move output.csv to new directory"
             Write-Log "Unable to move output.csv to new directory" -LogExtension .err
@@ -700,4 +707,7 @@ Function Create-StudentObject {
 
 
 # --- Run the script...
-import-Csv "\\server\share\folder\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","UnknownField1","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject #-verbose
+import-Csv "\\server\path\to\csv\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","AcademicYear","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject #-verbose
+
+#testing...
+#import-Csv "c:\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","AcademicYear","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject -verbose
