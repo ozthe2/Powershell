@@ -13,7 +13,7 @@ True
 
 The above example creates the group 'MilkDrinkers'.  In this example, group is created and 'True' is returned. Otherwise the error is returned.
 .NOTES
-Version: 1.0
+Version: 2.0
 Date: 26 September 2014
 Created By: OH
 .LINK
