@@ -1,0 +1,2 @@
+$tsenv = New-Object -ComObject Microsoft.SMS.TSEnvironment
+$tsenv.value("StartTime") = get-date -format HH:mm:ss
