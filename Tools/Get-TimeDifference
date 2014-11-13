@@ -1,0 +1,75 @@
+<#
+.Synopsis
+Find out the difference between two times.
+.DESCRIPTION
+Takes two times (in 24hr format) and will find out the difference between them in Hours, Minutes and Seconds. (HH:mm:ss)
+Note: This has not been written to display future start-times eg start time: 14:00 end time: 13:30 as I did not require it for my needs. Feel free add this feature.
+.PARAMETER StartTime
+The start time eg 13:00
+If you do not enter a time, then the start time defaults to the time now.
+.PARAMETER EndTime
+The end time eg 13:30 (Please ensure that this time is later than the start time.)
+If you do not enter a time, then the end time defaults to the time now.
+.EXAMPLE
+PS C:\> Get-TimeDifference
+
+StartTime                                                   EndTime                                                     TimeDifference                                            
+---------                                                   -------                                                     --------------                                            
+15:01:13                                                    15:01:13                                                    00:00:00  
+
+The above example uses the time now for both the start time and end time.
+.EXAMPLE
+PS C:\> Get-TimeDifference -EndTime 16:00
+
+StartTime                                                   EndTime                                                     TimeDifference                                            
+---------                                                   -------                                                     --------------                                            
+15:02:58                                                    16:00                                                       00:57:02    
+
+The above example finds the time difference in Hours, Minutes and seconds between the time now (in this case it was 15:02:58) and the specified end time of 16:00
+.EXAMPLE
+PS C:\> Import-Csv C:\temp\times.csv | Get-TimeDifference
+
+StartTime                                                   EndTime                                                     TimeDifference                                            
+---------                                                   -------                                                     --------------                                            
+12:00                                                       13:00                                                       01:00:00                                                  
+15:40                                                       18:00                                                       02:20:00  
+
+The above example imports a csv file that contains the following:
+starttime,endtime
+12:00,13:00
+15:40,18:00
+.NOTES
+Version: 1.0
+Author: OH
+Date: 17 October 2014
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Misc
+#>
+
+function Get-TimeDifference {
+    [CmdletBinding()]
+    [OutputType('MyType.TimeDiff')]    
+    Param(              
+        [PARAMETER(Mandatory=$false,
+        ValueFromPipelineByPropertyName=$true,
+        Position=0)]        
+        [string]
+        $StartTime = (Get-Date -format HH:mm:ss),
+
+        [PARAMETER(Mandatory=$false,
+        ValueFromPipelineByPropertyName=$true)]
+        [string]
+        $EndTime = (Get-Date -format HH:mm:ss)
+    )
+
+    PROCESS {
+        [PSCustomObject] @{
+            StartTime = $StartTime
+            EndTime = $EndTime
+            TimeDifference = (New-TimeSpan $StartTime $EndTime).ToString()
+            PSTypename = 'MyType.TimeDiff'
+        }
+    }
+}#end function
