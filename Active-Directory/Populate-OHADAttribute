@@ -1,0 +1,105 @@
+<#
+.Synopsis
+   Populates a single attribute for user objects in AD.
+.DESCRIPTION
+   Populates an AD attribute for all users within a pre-defined OU of either our Staff or Student accounts, or a single user.
+.PARAMETER Attribute
+    This is the Active Directory user attribute that you wish to write to.  If you do not specify this then it defaults to: ExtensionAttribute11
+.PARAMETER AccountType
+    This selects whether to target the action on all Staff accounts or all Student accounts.  If you leave this out then it defaults to all Staff Accounts.
+.PARAMETER Identity
+    The SAMAccount name of a single user in Active Directory that you wish the attribute change to take effect on. Eg: BloggsF
+.PARAMETER Value
+    This is the value that you would like the attribute to hold.  If you leave this out then the default value written is: E
+.PARAMETER DoNotLogSuccess
+    If you specify this switch then successfull attribute changes will not be logged to a text file.
+.EXAMPLE
+   PS C:\> Populate-OHADAttribute
+
+   The above example populates the 'ExtensionAttribute11' attribute of all of our staff user accounts to have the value of: E and will log all of the successful changes to c:\Populate-OHADAttribute.log
+.EXAMPLE
+   PS C:\> Populate-OHADAttribute -Attribute msDS-cloudExtensionAttribute11 -Value 'X' -AccountType StudentAccounts -DoNotLogSuccess -Verbose
+
+   The above example populates the Active Directory user attribute: "msDS-CloudExtensionAttribute11" with the value of 'X' to all Student accounts.  This example will not leave a log file for the successes.
+.EXAMPLE
+    PS C:\> Populate-OHADAttribute -Attribute description -Value "Staff Member" -Identity BloggsF
+    
+    The above example sets the 'Description' attribute to: "Staff Member" for a single user object named: BloggsF and in addition will log the change to c:\Populate-OHADAttribute.log
+.NOTES
+    Author: OH
+    Created: 10 November 2014
+.LINK
+    https://github.com/ozthe2/Misc
+#>
+
+function Populate-OHADAttribute {
+ [CmdletBinding(SupportsShouldProcess=$true)]    
+    Param
+    (        
+        [Parameter(Position=0)]
+        $Attribute = 'ExtensionAttribute11',        
+        
+        [Parameter (Mandatory=$false,
+                    ParameterSetName = "Bulk")]
+        [ValidateSet("StaffAccounts","StudentAccounts")]
+        [String]
+        $AccountType = 'StaffAccounts',
+
+        [Parameter (Mandatory=$true,                    
+                    ParameterSetName = "Single")]
+        [String]
+        $Identity,
+
+        [String]
+        $Value = 'E',
+
+        [switch]
+        $DoNotLogSuccess
+    )
+
+    BEGIN {
+        $Error = $false
+
+        if ($pscmdlet.ParameterSetName -eq "Bulk") {
+            if ($AccountType -eq 'StaffAccounts') {
+                $SearchBase = "ou=current,ou=staff,ou=users,ou=college,"
+                write-verbose "The parameter set for making a bulk change to users in: $SearchBase has been selected."
+            } else {
+                $SearchBase = "ou=current,ou=students,ou=users,ou=college,"
+                write-verbose "The parameter set for making a bulk change to users in: $SearchBase has been selected."
+            }        
+            $Accounts = get-aduser -SearchBase ($SearchBase + ((get-addomain).distinguishedname)) -Filter * -Properties $Attribute
+        } else {
+            $Accounts = get-aduser -Identity $Identity -Properties $Attribute
+        } 
+    }#End begin
+
+    PROCESS {
+        foreach ($aduser in $Accounts) {            
+            try {
+                Set-ADUser -identity $aduser.samaccountname -Replace @{$attribute = $Value}  -ea stop -ev x
+                if (!($DoNotLogSuccess)) {
+                    "User: $($aduser.samaccountname) Changing Attribute: $attribute to: $Value" | Out-File c:\Populate-OHADAttribute.log -Append
+                    write-verbose "User: $($aduser.samaccountname) Changing Attribute: $attribute to: $Value"
+                }
+            } catch {
+                "Errorchanging user: $($aduser.samaccountname) Changing Attribute: $attribute to: $Value" | Out-File c:\Populate-OHADAttribute.err -Append
+                $Error = $true
+                write-warning "Errorchanging user: $($aduser.samaccountname) Changing Attribute: $attribute to: $Value"
+            }
+        }        
+    }#end proc
+    
+    END {
+        write-verbose "Script has finished processing."
+        
+        if (!($DoNotLogSuccess)) {
+            write-verbose "Please see success log at c:\Populate-OHADAttribute.log"
+        }
+
+        if ($Error) {
+            Write-Warning "1 or more errors occurred."
+            write-verbose "Accounts that errored can be found at c:\Populate-OHADAttribute.err"
+        }
+    }
+}#End function
