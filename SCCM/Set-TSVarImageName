@@ -1,0 +1,2 @@
+$tsenv = New-Object -ComObject Microsoft.SMS.TSEnvironment
+$tsenv.value("ImageName") = "Win7_x64_180814"
