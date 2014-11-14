@@ -9,9 +9,8 @@ $GPOGuid = "{41AD9AC3-6CFF-4C09-B508-8A1F4A507939}"
 
 clear-host
 
-#get printer share and name...
+#get printer details as Proof of Concept...
 foreach ($printer in $printersxml.Printers.SharedPrinter) {
-    #write-output $printer.ChildNodes.path
     write-output "Printer Action:$($printer.Properties.action)"
     write-output "Shared Printer: $($printer.Properties.path)"
     write-output "Default? (1='Yes') $($printer.Properties.default)"    
