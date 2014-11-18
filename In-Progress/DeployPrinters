@@ -4,14 +4,13 @@
 <#
 Author: OH
 Date:   17 November 2014
-Rev.    1.0
+Rev.    1.1
 
 Purpose: Reads the Group Policy preference item for printers 
-         and deploys \ deletes printers via Powershell script.   
+         and deploys \ deletes printers via Powershell script.
 
 #>
 #endregion
-
 
 function Deploy-OHPrinters {
     [CmdletBinding()]
@@ -23,40 +22,44 @@ function Deploy-OHPrinters {
 
     BEGIN {
         $Domain = (Get-OHDomainInfo).Domain
-        [xml]$PrintersXml = Get-Content "\\$Domain\sysvol\$Domain\Policies\$GPOGuid\User\Preferences\Printers\Printers.xml"
+        [xml]$PrintersXml = Get-Content "\\$Domain\sysvol\$Domain\Policies\$GPOGuid\User\Preferences\Printers\Printers.xml"        
         
-        #Getcomputer OU
-        $ComputerOU = (Get-OHDomainInfo).ComputerOU        
-
+        $ComputerOU = (Get-OHDomainInfo).ComputerOU
     }
 
-
     PROCESS {
-        foreach ($printer in $printersxml.Printers.SharedPrinter) {
-            switch ($printer.Properties.action) {
-                #Create a printer                
-                'U' {
-                        #If the target context is for a computer...
-                        if ($printer.filters.ChildNodes.UserContext -eq 0) {    
-                            #Does the OU the computer is in match with the OU for the deployed printer..if so, add the printer
-                            if ($computerou -eq $printer.filters.ChildNodes.Name) {Add-OHPrinter -Printer $printer.Properties.path}
-                        }
-                    }
-
-                #Delete a printer
-                'D' {}
-
-            }
-
-
-        }#end foreach
-
+        #GPP Target object info (Added for code readability)
+        [int]$Computer = 0
+        [int]$User = 1    
+    
+        foreach ($Printer in $PrintersXml.Printers.SharedPrinter) {
+            #Continue only if the target item in the GPP policy is against a computer object.
+            if ($printer.filters.ChildNodes.UserContext -eq $Computer) { 
+                if ($printer.filters.ChildNodes.Name -eq $computerOU){
+                    switch ($Printer.Properties.action) {
+                       'C' {                            
+                               if ($printer.Properties.default) {
+                                   Add-OHPrinter -Printer $Printer.Properties.path -Default    
+                               } else {
+                                   Add-OHPrinter -Printer $Printer.Properties.path
+                               }  
+                           }#end 'Create'
+                       'U' {
+                               if ($printer.Properties.default) {
+                                   Add-OHPrinter -Printer $Printer.Properties.path -Default    
+                               } else {
+                                   Add-OHPrinter -Printer $Printer.Properties.path
+                               } 
+                           }#end 'Update'
+                       'D' {
+                               Delete-OHPrinter -Printer $Printer.Properties.path
+                           }#end 'Delete'                
+                    }#end Switch            
+                }#End Inner If        
+            }#End Outer If  
+        }#end foreach    
     }#end process
-
-
-}
-
-
+}#end function
 
 function Add-OHPrinter {
 #region Function Notes
@@ -133,9 +136,10 @@ as we are using Powershell 3.0 here with Win 7SP1 Computers.
 function Get-OHDomainInfo {
 #region Function Notes
 <#
-    Using this method to obtain the ou and domain as the script is run on domain computers
-    that do not have access to the Active Directory powershell module.
-    Otherwise, we could have used Get-ADComputer...
+    Using this method to obtain the Computer OU and Domain as this script
+    is run on domain computers that do not have access to the Active Directory powershell module.
+    Otherwise, we could have used Get-ADComputer and this whole function would have been
+    a lot easier and more 'readable'...
 #>
 #endregion
     $objDomain = New-Object System.DirectoryServices.DirectoryEntry  
@@ -165,13 +169,5 @@ function Get-OHDomainInfo {
     }
 }
 
-
-
 #Entry point to the script
-
-#vm environment
-#Deploy-OHPrinters -GPOGuid "{41AD9AC3-6CFF-4C09-B508-8A1F4A507939}"
-
-#live
-Deploy-OHPrinters -GPOGuid "{CF14510B-DCC6-42D3-B025-AED5B529666C}"
-
+Deploy-OHPrinters -GPOGuid "{4B6DDE1D-ADF1-4539-B382-60B2A53A4A72}"
