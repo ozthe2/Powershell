@@ -22,7 +22,7 @@ function Deploy-OHPrinters {
     )
 
     BEGIN {
-        $Domain = $ComputerOU = (Get-OHDomainInfo).Domain
+        $Domain = (Get-OHDomainInfo).Domain
         [xml]$PrintersXml = Get-Content "\\$Domain\sysvol\$Domain\Policies\$GPOGuid\User\Preferences\Printers\Printers.xml"
         
         #Getcomputer OU
@@ -158,7 +158,7 @@ function Get-OHDomainInfo {
     $ComputerOU=$ComputerOU.substring($pos+1)
 
     #Return an object...
-    $obj = [PSCustomObject] @{
+    [PSCustomObject] @{
         Domain = $Domain
         ComputerOU = $ComputerOU            
         PSTypename = 'MyTypes.OHComputerDomainInfo'
