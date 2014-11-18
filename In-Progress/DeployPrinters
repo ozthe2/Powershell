@@ -1,0 +1,177 @@
+#Requires -Version 3.0
+
+#region General Script Info
+<#
+Author: OH
+Date:   17 November 2014
+Rev.    1.0
+
+Purpose: Reads the Group Policy preference item for printers 
+         and deploys \ deletes printers via Powershell script.   
+
+#>
+#endregion
+
+
+function Deploy-OHPrinters {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]                       
+        [String]
+        $GPOGuid        
+    )
+
+    BEGIN {
+        $Domain = $ComputerOU = (Get-OHDomainInfo).Domain
+        [xml]$PrintersXml = Get-Content "\\$Domain\sysvol\$Domain\Policies\$GPOGuid\User\Preferences\Printers\Printers.xml"
+        
+        #Getcomputer OU
+        $ComputerOU = (Get-OHDomainInfo).ComputerOU        
+
+    }
+
+
+    PROCESS {
+        foreach ($printer in $printersxml.Printers.SharedPrinter) {
+            switch ($printer.Properties.action) {
+                #Create a printer                
+                'U' {
+                        #If the target context is for a computer...
+                        if ($printer.filters.ChildNodes.UserContext -eq 0) {    
+                            #Does the OU the computer is in match with the OU for the deployed printer..if so, add the printer
+                            if ($computerou -eq $printer.filters.ChildNodes.Name) {Add-OHPrinter -Printer $printer.Properties.path}
+                        }
+                    }
+
+                #Delete a printer
+                'D' {}
+
+            }
+
+
+        }#end foreach
+
+    }#end process
+
+
+}
+
+
+
+function Add-OHPrinter {
+#region Function Notes
+<#
+Using the com-object model for creating a printer connection
+as we are using Powershell 3.0 here with Win 7SP1 Computers.
+#>
+#endregion
+    [CmdletBinding()]    
+    Param
+    (        
+        [Parameter(Position=0)]
+        [String[]]
+        $Printer,        
+        
+        [switch]
+        $Default
+    )
+    
+    BEGIN {
+        Write-verbose "Creating COM object"
+        $Printers = New-Object -ComObject WScript.Network 
+    }
+
+
+    PROCESS {
+        foreach ($p in $Printer) {
+            Write-Verbose "Adding the printer"
+            $Printers.AddWindowsPrinterConnection($p)
+
+            If ($default) {
+                Write-verbose "Setting default printer"
+                $Printers.SetDefaultPrinter($p)
+            }
+        }#end foreach
+    }#end process
+
+    END {}
+
+}
+
+function Delete-OHPrinter {
+#region Function Notes
+<#
+Using the com-object model for deleting a printer connection
+as we are using Powershell 3.0 here with Win 7SP1 Computers.
+#>
+#endregion
+    [CmdletBinding()]    
+    Param
+    (        
+        [Parameter(Position=0)]
+        [String[]]
+        $Printer
+    )
+    
+    BEGIN {
+        Write-verbose "Creating COM object"
+        $Printers = New-Object -ComObject WScript.Network 
+    }
+
+
+    PROCESS {
+        foreach ($p in $Printer) {
+            Write-Verbose "Deleting the printer"
+            $Printers.RemovePrinterConnection($p)
+        }#end foreach
+    }#end process
+
+    END {}
+
+}
+
+function Get-OHDomainInfo {
+#region Function Notes
+<#
+    Using this method to obtain the ou and domain as the script is run on domain computers
+    that do not have access to the Active Directory powershell module.
+    Otherwise, we could have used Get-ADComputer...
+#>
+#endregion
+    $objDomain = New-Object System.DirectoryServices.DirectoryEntry  
+    $strFilter = "(&(objectCategory=computer)(name=" + $env:computername + "))"
+
+    $objSearcher = New-Object System.DirectoryServices.DirectorySearcher  
+    $objSearcher.SearchRoot = $objDomain  
+    $objSearcher.Filter = $strFilter
+
+    $ComputerOU = $objSearcher.FindOne().Path
+
+    $pos = $ComputerOU.indexOf(",")
+                
+    #Now get the domain...
+    [string]$Domain = $objdomain.distinguishedName
+    $domain = $domain.Replace("DC=","")
+    $domain = $domain.Replace(",",".")
+
+    #And the OU the computer belongs to...
+    $ComputerOU=$ComputerOU.substring($pos+1)
+
+    #Return an object...
+    $obj = [PSCustomObject] @{
+        Domain = $Domain
+        ComputerOU = $ComputerOU            
+        PSTypename = 'MyTypes.OHComputerDomainInfo'
+    }
+}
+
+
+
+#Entry point to the script
+
+#vm environment
+#Deploy-OHPrinters -GPOGuid "{41AD9AC3-6CFF-4C09-B508-8A1F4A507939}"
+
+#live
+Deploy-OHPrinters -GPOGuid "{CF14510B-DCC6-42D3-B025-AED5B529666C}"
+
