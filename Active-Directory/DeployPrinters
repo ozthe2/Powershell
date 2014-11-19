@@ -51,7 +51,7 @@ function Deploy-OHPrinters {
             if ($printer.filters.ChildNodes.UserContext -eq $Computer) {
                 #The following 'foreach' line: The GPO could contain an 'or' target. eg 'If the computer exists in this OU OR that OU' so we had better check this... 
                 foreach ($OUTarget in $printer.filters.ChildNodes.Name) {
-                    if ($printer.filters.ChildNodes.Name -eq $computerOU){
+                    if ($OUTarget -eq $computerOU){
                         switch ($Printer.Properties.action) {
                            'C' {                            
                                    if ($printer.Properties.default -eq 1) {
