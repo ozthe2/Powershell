@@ -11,7 +11,7 @@ Purpose: Reads the Group Policy preference item for printers
 
 
 Change Log:
-rev 1.4 Some targeting may include an 'OR.'  Eg the computer must exist in this OU OR that OU.  This is now taken care of in the script.
+rev 1.4 Some targeting may include one or more 'OR' conditions.  Eg the computer must exist in this OU OR that OU.  This is now taken care of in the script.
 rev 1.3 Fixed setting default printer.
 rev 1.2 Added a check to see if there is a printer that is not targeted.  In other words, a printer that is deployed to all users that receive the GPO.
 #>
@@ -26,19 +26,18 @@ function Deploy-OHPrinters {
     )
 
     BEGIN {
-        $Domain = (Get-OHDomainInfo).Domain
         [xml]$PrintersXml = Get-Content "\\$Domain\sysvol\$Domain\Policies\$GPOGuid\User\Preferences\Printers\Printers.xml"        
+        $Domain = (Get-OHDomainInfo).Domain
+        $ComputerOU = (Get-OHDomainInfo).ComputerOU        
         
-        $ComputerOU = (Get-OHDomainInfo).ComputerOU
+        #GPP Target object info (Added for code readability)
+        [int]$Computer = 0
+        [int]$User = 1 
     }
 
     PROCESS {
-        #GPP Target object info (Added for code readability)
-        [int]$Computer = 0
-        [int]$User = 1    
-    
         foreach ($Printer in $PrintersXml.Printers.SharedPrinter) {
-            #If there is no targeting information ie, this printer is targeted to everyone that receives this GPO...
+            #If there is no targeting information and printer is set to create or update ie, this printer is targeted to everyone that receives this GPO...
             if ($printer.filters.ChildNodes.UserContext -eq $NULL -and ($printer.Properties.action -eq 'C' -or $printer.Properties.action -eq 'U')) {
                 if ($printer.Properties.default -eq 1) {
                     Add-OHPrinter -Printer $Printer.Properties.path -Default    
