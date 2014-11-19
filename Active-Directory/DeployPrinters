@@ -4,13 +4,14 @@
 <#
 Author: OH
 Date:   17 November 2014
-Rev.    1.3
+Rev.    1.4
 
 Purpose: Reads the Group Policy preference item for printers 
          and deploys \ deletes printers via Powershell script.
 
 
 Change Log:
+rev 1.4 Some targeting may include an 'OR.'  Eg the computer must exist in this OU OR that OU.  This is now taken care of in the script.
 rev 1.3 Fixed setting default printer.
 rev 1.2 Added a check to see if there is a printer that is not targeted.  In other words, a printer that is deployed to all users that receive the GPO.
 #>
@@ -47,30 +48,33 @@ function Deploy-OHPrinters {
             }
 
             #Continue only if the target item in the GPP policy is against a computer object.
-            if ($printer.filters.ChildNodes.UserContext -eq $Computer) { 
-                if ($printer.filters.ChildNodes.Name -eq $computerOU){
-                    switch ($Printer.Properties.action) {
-                       'C' {                            
-                               if ($printer.Properties.default -eq 1) {
-                                   Add-OHPrinter -Printer $Printer.Properties.path -Default    
-                               } else {
-                                   Add-OHPrinter -Printer $Printer.Properties.path
-                               }  
-                           }#end 'Create'
-                       'U' {
-                               if ($printer.Properties.default -eq 1) {
-                                   Add-OHPrinter -Printer $Printer.Properties.path -Default    
-                               } else {
-                                   Add-OHPrinter -Printer $Printer.Properties.path
-                               } 
-                           }#end 'Update'
-                       'D' {
-                               Delete-OHPrinter -Printer $Printer.Properties.path
-                           }#end 'Delete'                
-                    }#end Switch            
-                }#End Inner If 
+            if ($printer.filters.ChildNodes.UserContext -eq $Computer) {
+                #The following 'foreach' line: The GPO could contain an 'or' target. eg 'If the computer exists in this OU OR that OU' so we had better check this... 
+                foreach ($OUTarget in $printer.filters.ChildNodes.Name) {
+                    if ($printer.filters.ChildNodes.Name -eq $computerOU){
+                        switch ($Printer.Properties.action) {
+                           'C' {                            
+                                   if ($printer.Properties.default -eq 1) {
+                                       Add-OHPrinter -Printer $Printer.Properties.path -Default    
+                                   } else {
+                                       Add-OHPrinter -Printer $Printer.Properties.path
+                                   }  
+                               }#end 'Create'
+                           'U' {
+                                   if ($printer.Properties.default -eq 1) {
+                                       Add-OHPrinter -Printer $Printer.Properties.path -Default    
+                                   } else {
+                                       Add-OHPrinter -Printer $Printer.Properties.path
+                                   } 
+                               }#end 'Update'
+                           'D' {
+                                   Delete-OHPrinter -Printer $Printer.Properties.path
+                               }#end 'Delete'                
+                        }#end Switch            
+                    }#End Inner If 
+                }#end inner foreach
             }#End Outer If 
-        }#end foreach    
+        }#end outer foreach    
     }#end process
 }#end function
 
@@ -185,7 +189,7 @@ function Get-OHDomainInfo {
 #Entry point to the script
 
 #Test policy
-#Deploy-OHPrinters -GPOGuid "{4B6DDE1D-ADF1-4539-B382-60B2A53A4A72}"
+Deploy-OHPrinters -GPOGuid "{4B6DDE1D-ADF1-4539-B382-60B2A53A4A72}"
 
 #live policy
-Deploy-OHPrinters -GPOGuid "{CF14510B-DCC6-42D3-B025-AED5B529666C}"
+#Deploy-OHPrinters -GPOGuid "{CF14510B-DCC6-42D3-B025-AED5B529666C}"
