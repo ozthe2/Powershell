@@ -4,7 +4,7 @@
 <#
 Author: OH
 Date:   17 November 2014
-Rev.    1.1
+Rev.    1.2
 
 Purpose: Reads the Group Policy preference item for printers 
          and deploys \ deletes printers via Powershell script.
@@ -33,6 +33,15 @@ function Deploy-OHPrinters {
         [int]$User = 1    
     
         foreach ($Printer in $PrintersXml.Printers.SharedPrinter) {
+            #If there is no targeting information ie, this printer is targeted to everyone that receives this GPO...
+            if ($printer.filters.ChildNodes.UserContext -eq $NULL -and ($printer.Properties.action -eq 'C' -or $printer.Properties.action -eq 'U')) {
+                if ($printer.Properties.default) {
+                    Add-OHPrinter -Printer $Printer.Properties.path -Default    
+                } else {
+                    Add-OHPrinter -Printer $Printer.Properties.path
+                }  
+            }
+
             #Continue only if the target item in the GPP policy is against a computer object.
             if ($printer.filters.ChildNodes.UserContext -eq $Computer) { 
                 if ($printer.filters.ChildNodes.Name -eq $computerOU){
@@ -57,16 +66,6 @@ function Deploy-OHPrinters {
                     }#end Switch            
                 }#End Inner If        
             }#End Outer If 
-            
-            #If there is no targeting information ie, this printer is targeted to everyone that receives this GPO...
-            if ($printer.filters.ChildNodes.UserContext -eq $NULL) {
-                if ($printer.Properties.default) {
-                    Add-OHPrinter -Printer $Printer.Properties.path -Default    
-                } else {
-                    Add-OHPrinter -Printer $Printer.Properties.path
-                }  
-            }
-
         }#end foreach    
     }#end process
 }#end function
