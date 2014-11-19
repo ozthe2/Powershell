@@ -4,13 +4,15 @@
 <#
 Author: OH
 Date:   17 November 2014
+Rev.    1.3
 
 Purpose: Reads the Group Policy preference item for printers 
          and deploys \ deletes printers via Powershell script.
 
-Rev.    1.2
-Changes since last revision: Added a check to see if there is a printer that is not targeted.  
-                             In other words, a printer that is deployed to all users that receive the GPO.
+
+Change Log:
+rev 1.3 Fixed setting default printer.
+rev 1.2 Added a check to see if there is a printer that is not targeted.  In other words, a printer that is deployed to all users that receive the GPO.
 #>
 #endregion
 
@@ -37,7 +39,7 @@ function Deploy-OHPrinters {
         foreach ($Printer in $PrintersXml.Printers.SharedPrinter) {
             #If there is no targeting information ie, this printer is targeted to everyone that receives this GPO...
             if ($printer.filters.ChildNodes.UserContext -eq $NULL -and ($printer.Properties.action -eq 'C' -or $printer.Properties.action -eq 'U')) {
-                if ($printer.Properties.default) {
+                if ($printer.Properties.default -eq 1) {
                     Add-OHPrinter -Printer $Printer.Properties.path -Default    
                 } else {
                     Add-OHPrinter -Printer $Printer.Properties.path
@@ -49,14 +51,14 @@ function Deploy-OHPrinters {
                 if ($printer.filters.ChildNodes.Name -eq $computerOU){
                     switch ($Printer.Properties.action) {
                        'C' {                            
-                               if ($printer.Properties.default) {
+                               if ($printer.Properties.default -eq 1) {
                                    Add-OHPrinter -Printer $Printer.Properties.path -Default    
                                } else {
                                    Add-OHPrinter -Printer $Printer.Properties.path
                                }  
                            }#end 'Create'
                        'U' {
-                               if ($printer.Properties.default) {
+                               if ($printer.Properties.default -eq 1) {
                                    Add-OHPrinter -Printer $Printer.Properties.path -Default    
                                } else {
                                    Add-OHPrinter -Printer $Printer.Properties.path
@@ -66,7 +68,7 @@ function Deploy-OHPrinters {
                                Delete-OHPrinter -Printer $Printer.Properties.path
                            }#end 'Delete'                
                     }#end Switch            
-                }#End Inner If        
+                }#End Inner If 
             }#End Outer If 
         }#end foreach    
     }#end process
@@ -181,4 +183,9 @@ function Get-OHDomainInfo {
 }
 
 #Entry point to the script
-Deploy-OHPrinters -GPOGuid "{4B6DDE1D-ADF1-4539-B382-60B2A53A4A72}"
+
+#Test policy
+#Deploy-OHPrinters -GPOGuid "{4B6DDE1D-ADF1-4539-B382-60B2A53A4A72}"
+
+#live policy
+Deploy-OHPrinters -GPOGuid "{CF14510B-DCC6-42D3-B025-AED5B529666C}"
