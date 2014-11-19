@@ -56,7 +56,17 @@ function Deploy-OHPrinters {
                            }#end 'Delete'                
                     }#end Switch            
                 }#End Inner If        
-            }#End Outer If  
+            }#End Outer If 
+            
+            #If there is no targeting information ie, this printer is targeted to everyone that receives this GPO...
+            if ($printer.filters.ChildNodes.UserContext -eq $NULL) {
+                if ($printer.Properties.default) {
+                    Add-OHPrinter -Printer $Printer.Properties.path -Default    
+                } else {
+                    Add-OHPrinter -Printer $Printer.Properties.path
+                }  
+            }
+
         }#end foreach    
     }#end process
 }#end function
@@ -170,4 +180,4 @@ function Get-OHDomainInfo {
 }
 
 #Entry point to the script
-Deploy-OHPrinters -GPOGuid "{4B6CCE1C-ABF1-5529-B382-30B2A53D4A71}"
+Deploy-OHPrinters -GPOGuid "{4B6DDE1D-ADF1-4539-B382-60B2A53A4A72}"
