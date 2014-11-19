@@ -187,9 +187,4 @@ function Get-OHDomainInfo {
 }
 
 #Entry point to the script
-
-#Test policy
 Deploy-OHPrinters -GPOGuid "{4B6DDE1D-ADF1-4539-B382-60B2A53A4A72}"
-
-#live policy
-#Deploy-OHPrinters -GPOGuid "{CF14510B-DCC6-42D3-B025-AED5B529666C}"
