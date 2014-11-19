@@ -4,11 +4,13 @@
 <#
 Author: OH
 Date:   17 November 2014
-Rev.    1.2
 
 Purpose: Reads the Group Policy preference item for printers 
          and deploys \ deletes printers via Powershell script.
 
+Rev.    1.2
+Changes since last revision: Added a check to see if there is a printer that is not targeted.  
+                             In other words, a printer that is deployed to all users that receive the GPO.
 #>
 #endregion
 
