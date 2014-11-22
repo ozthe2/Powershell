@@ -26,8 +26,8 @@ function Deploy-OHPrinters {
     )
 
     BEGIN {
+         $Domain = (Get-OHDomainInfo).Domain
         [xml]$PrintersXml = Get-Content "\\$Domain\sysvol\$Domain\Policies\$GPOGuid\User\Preferences\Printers\Printers.xml"        
-        $Domain = (Get-OHDomainInfo).Domain
         $ComputerOU = (Get-OHDomainInfo).ComputerOU        
         
         #GPP Target object info (Added for code readability)
