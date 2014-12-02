@@ -1,0 +1,4 @@
+$UserName =  get-content x:\sms\pkg\sms10000\UserName.txt
+
+$tsenv = New-Object -ComObject Microsoft.SMS.TSEnvironment
+$tsenv.value("UserName") = $UserName
