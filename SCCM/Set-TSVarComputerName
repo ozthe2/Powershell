@@ -1,0 +1,4 @@
+$ComputerName =  get-content x:\sms\pkg\sms10000\ComputerName.txt
+
+$tsenv = New-Object -ComObject Microsoft.SMS.TSEnvironment
+$tsenv.value("OSDComputerName") = $ComputerName
