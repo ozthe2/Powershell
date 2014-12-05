@@ -1,0 +1,4 @@
+$shell = new-object -ComObject wscript.shell
+$SecondsToDisplay = 5 # set to -1 to stay on screen until button is clicked.
+
+$shell.Popup("Hey! What are you looking at?",$SecondsToDisplay,"Popup",0+48)
