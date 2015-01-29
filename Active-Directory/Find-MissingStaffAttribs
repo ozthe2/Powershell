@@ -6,9 +6,10 @@
             First the CSV from HR is read in and an array is built that contains
             AD users that are contained in the CSV.
             This array is then checked for the required attributes and outputs
-            the results on screen. 
+            the results on screen as well as saving them to the array:$MissingAttribs. 
  #>
 
+ $Domain = (Get-ADDomain).dnsroot
  $DomainDN = (Get-ADDomain).DistinguishedName
  $OU = "ou=xxx,ou=xxx"
  
@@ -21,22 +22,47 @@
 
 Foreach ($ADPerson in $ADStaff) {
     if ( $ADPerson.department -eq $NULL -or $ADPerson.extensionAttribute11 -eq $NULL -or $ADPerson.extensionAttribute12 -eq $NULL -or $ADPerson.extensionAttribute13 -eq $NULL -or $ADPerson.extensionAttribute12 -eq $NULL -or $ADPerson.extensionAttribute15 -eq $NULL){
-        $adusers+=  $adperson        
+        $adusers+=  $ADPerson        
     }                                                   
 }   
 
 write-output "There are $($adusers.count) in the array that require checking.`n`n"
 write-output "The following accounts have missing attributes:`n"
-foreach ($User in  $adusers) {
+foreach ($ADUser in  $adusers) {
     foreach ($CSVUser in $CSV) {
-        if ($user.mail -eq $csvuser.'email address') {
-            Write-Output $user.SamAccountName
-            Write-Output "Department: $($user.Department)"
-            Write-Output "Employment Status: $($user.extensionAttribute11)"
-            Write-Output "FirstName: $($user.extensionAttribute12)"
-            Write-Output "Area: $($user.extensionAttribute13)"
-            Write-Output "Full Name: $($user.extensionAttribute14)"
-            Write-Output "Ext: $($user.extensionAttribute15)`n`n"        
+        if ($ADuser.employeeNumber -eq (Format-OHStaffNumber ($csvuser.'Staff Ref'))) {
+            Write-Output $ADuser.SamAccountName
+            Write-Output "Department: $($ADuser.Department)"
+            Write-Output "Employment Status: $($ADuser.extensionAttribute11)"
+            Write-Output "FirstName: $($ADuser.extensionAttribute12)"
+            Write-Output "Area: $($ADuser.extensionAttribute13)"
+            Write-Output "Full Name: $($ADuser.extensionAttribute14)"
+            Write-Output "Ext: $($ADuser.extensionAttribute15)`n`n"   
+            $MissingAttribs+=$ADuser     
         }    
     }    
 }
+
+
+
+Write-Output "`nThere are: $($MissingAttribs.count) acccounts that require action."
+
+
+
+
+Function Format-OHStaffNumber {
+    #Formats the staff number by adding leading zero's where necessary
+
+    param(
+        [STRING]$StaffNo
+    )
+
+    Switch ($StaffNo.Length) {
+        1 {return $StaffNo = ("0000" + $StaffNo)}
+        2 {return $StaffNo = ("000" + $StaffNo)}
+        3 {return $StaffNo = ("00" + $StaffNo)}
+        4 {return $StaffNo = ("0" + $StaffNo)}
+        default {return $StaffNo}
+    }
+
+}#End function Format-OHStaffNumber
