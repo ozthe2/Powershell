@@ -7,9 +7,9 @@
             AD users that are contained in the CSV.
             This array is then checked for the required attributes and outputs
             the results on screen as well as saving them to the array:$MissingAttribs. 
+            A file is output to the c drive.
  #>
 
- $Domain = (Get-ADDomain).dnsroot
  $DomainDN = (Get-ADDomain).DistinguishedName
  $OU = "ou=xxx,ou=xxx"
  
@@ -46,6 +46,11 @@ foreach ($ADUser in  $adusers) {
 
 
 Write-Output "`nThere are: $($MissingAttribs.count) acccounts that require action."
+
+foreach ($x in $MissingAttribs) {
+    "$($x.samaccountname),$($x.employeenumber)"  |  out-file -FilePath c:\MissingAttribs.log -Append
+
+}
 
 
 
