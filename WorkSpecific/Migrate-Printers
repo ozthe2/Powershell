@@ -1,0 +1,153 @@
+#Created by: OH
+#Date: 02 April 2015
+#Migrates our printers to new DHCP subnets
+# Currently In progress - awaiting Pcut response - 2 functions left to write.
+
+$PrintServer = "xxxxx.xxx.xxx"
+$DHCPServer = "xxxxx.xxx.xxx"
+#Csv file should contain three headers of: Scope,PrinterName,MAC
+$PathToCSV = "C:\printers.csv"
+
+write-output "Reading in CSV file..."
+$PrintersToMigrate = import-csv $PathToCSV
+write-output "Done"
+write-output "-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-`n"
+
+Function Extract-IPAddress {
+    param (
+        [string]$Port
+    )
+    # Returns the IP address of the printer as
+    # we are getting it from the port name and
+    # it is usually preceeded by PAPERCUT_
+
+    if ($Port.contains("PAPERCUT_")) {       
+        return ($Port.Split("_")[1])
+    } else {
+        return $Port
+    }
+}#End Extract-IPAddress
+
+Function Check-ExistingDHCPReservation {
+    #Checks to see if there is an existing dhcp reservation
+    param (
+        [PSObject]$PrinterObject
+    )
+
+    $AllScopes = Get-DhcpServerv4Scope -ComputerName $PrinterObject.DHCPServer    
+
+    foreach ($Scope in $AllScopes) {
+        try {    
+                return Get-DhcpServerv4Reservation -ComputerName $PrinterObject.dhcpserver -IPAddress $PrinterObject.printerip -ea Stop | select scopeid
+        } catch {
+                write-warning "No existing reservation found to delete."
+                return $false
+        }    
+    }#end foreach
+}#end Check_ExistingDHCPReservation
+
+Function Delete-ExistingDHCPReservation {
+    param (
+        [String]$DHCPServer,
+        [string]$IPReservation
+    )
+    
+    write-warning "Deleting existing reservation: $IPReservation" 
+    try {
+        #Remove-DhcpServerv4Reservation -ComputerName $DHCPServer -IPAddress $IPReservation
+        write-warning "Reservation deleted"
+    } catch {
+        write-error "Unable to delete existing reservation for IPaddress: $ipreservation`n"
+        "Error deleting reservation: $IPReservation" | out-file "c:\DeletePrinterReservationError.err" -Append
+    }
+    
+
+}#end Delete_NewDHCPReservation
+
+Function Add-NewDHCPReservation {
+    param (
+        [psobject]$PrinterObj
+    )
+    
+    #Get the next 'last' available IPAddress for the required subnet
+    $NewIP = Get-DhcpServerv4FreeIPAddress -ComputerName $PrinterObj.dhcpserver -ScopeId $printerobj.scopeid -NumAddress 1022 | select -last 1
+
+    write-output "Adding new reservation of $newip to scope: $($PrinterObj.scopeid)"
+
+    #Now add the new reservation
+    try {
+        #Add-DhcpServerv4Reservation -scopeid $printerobj.scopeid -ComputerName $printerobj.dhcpserver -IPAddress $newip -ClientId $printerobj.mac -Name $printerobj.printername -Type Both -ea Stop
+    } catch {
+        $ReservationErrMsg = "Unable to add reservation for scope: $printerobj.scopeid, New IP address of: $newip, Printer name: $printerobj.printername Printer MAC: $printerobj.mac"
+        write-warning $ReservationErrMsg
+        $ReservationErrMsg | outfile "c:\ReservationAddError.err"         
+    }
+
+
+
+
+}#end Add_NewDHCPReservation
+
+#Script Entry point....
+foreach ($CSVPrinter in $PrinterstoMigrate) {    
+    
+    try {        
+        $Printer = Get-Printer -ComputerName $PrintServer -Name $CSVPrinter.PrinterName -ErrorAction stop
+        $Continue = $True
+
+    } catch {
+        $ErrorMessage = "Unable to process $($CSVPrinter.printername)`n"
+        write-error $ErrorMessage
+        $($csvprinter.printername) | Out-File c:\PrinterMigrationErrors.txt -Append
+        $Continue=$false
+    }        
+    
+    if ($Continue) {
+        #Create Custom Printer Object
+
+        $obj =  [PSCustomObject] @{
+                    ScopeID = $CSVPrinter.Scope
+                    PrinterName = $CSVPrinter.PrinterName
+                    MAC = $CSVPrinter.MAC
+                    Port = $printer.Portname
+                    PrinterIP = Extract-IPAddress -Port $printer.PortName
+                    DHCPServer = $DHCPServer                
+                }#End PSCustomObject
+
+          
+        Write-output "Processing $($obj.PrinterName)`n"
+
+        #Check for existing DHCP reservation
+        $ScopeResult = Check-ExistingDHCPReservation -PrinterObject $obj
+
+        #Delete existing DHCP reservation if there was an existing reservation found
+        if ($ScopeResult -ne $false) {
+            Write-warning "An existing reservation of $($obj.printerip) was found in the scope: $($ScopeResult.scopeid.ipaddresstostring)"
+            #Call the function that deletes the reservation           
+            Delete-ExistingDHCPReservation -DHCPServer $obj.DHCPServer -IPReservation $obj.PrinterIP
+        }
+
+        #Add new reservation to subnet specified in the CSV
+        Add-NewDHCPReservation -PrinterObj $obj
+            
+
+       
+    
+    }#End If
+
+    write-output "`n-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-`n"   
+}#End Foreach
+
+
+
+Function Create-PapercutPrinterPort {
+
+
+}
+
+
+Function Modify-PrinterPort {
+
+
+
+}#end Modify-PrinterPort
