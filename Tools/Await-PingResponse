@@ -1,0 +1,45 @@
+# Author OH
+# Version 1.0
+# Date: 15 April 2015
+# NOTES: I will be using this in conjuction with my Wake-On-LAN script
+
+function Await-PingResponse {
+    param (
+        [string]$Computername,
+        [int]$Timeout=60,
+        [int]$SecondsDelay=15
+    )
+
+    $x=1
+
+    do {
+
+        write-progress -Activity "Waiting for $Computername to respond..." -PercentComplete ($x*100/$Timeout)
+        
+        $result = test-connection $Computername -Quiet -Count 1       
+
+        if ($x -eq $Timeout) {
+            write-output "Timeout expired..cannot wake this computer"
+            exit
+        }
+
+        $x++
+
+    } while ($Result -eq $false)
+
+
+    #Computer is responding to ping request - initiate a slight delay so that the networking components can fully initialise...
+    write-progress -Activity "$Computername has responded to ping requests." -PercentComplete (100)    
+
+    for ($i=0; $i -le $SecondsDelay; $i++) {
+        $Counter = $SecondsDelay
+        Write-Progress -Id 2 -Activity "Computer is UP!  Waiting for additional $SecondsDelay seconds to ensure network stack fully operational"  -PercentComplete ($i*100/$SecondsDelay)        
+        sleep 1
+    }  
+
+    Write-Progress -Id 2 -Completed $True
+
+
+}
+
+Await-PingResponse -Computername MyTestComputer -SecondsDelay 10
