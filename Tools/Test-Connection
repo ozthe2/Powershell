@@ -1,0 +1,15 @@
+#Author: OH
+#Date: 15 April 2015
+
+#NOTES: Tests to see if a powershell connection can be made to a remote computer
+#       To be used expanded on and used in my new SCCM GUI Tool
+
+$Connected = New-PSSession -ComputerName MyTestComputer -ea 'SilentlyContinue'
+
+if ($connected ) { 
+
+    write-host -ForegroundColor Green "Connected!"
+
+} else {
+     write-host -ForegroundColor red "Connection Failed"
+}
