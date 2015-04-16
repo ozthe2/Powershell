@@ -1,45 +1,85 @@
-# Author OH
-# Version 1.0
-# Date: 15 April 2015
-# NOTES: I will be using this in conjuction with my Wake-On-LAN script
+<#
+.SYNOPSIS
+Pings a device and if a response is received waits for a pre-determined time.
+A progressbar is displayed for both the ping and the delay time.
+.DESCRIPTION
+Ping a single device for a predetermined number of pings and optionally wait an additional
+number of seconds once a ping resposne has been received.
+.FUNCTIONALITY
+The intention of this script is to use it in conjunction with a Wake-On-Lan script.
+Once a magic packet has been sent, use this script to ping the device and once it responds to ping
+you can then set an additional amount of time in seconds to wait in order to let the device 
+initialise before trying to perform any remote actions on it.
+.PARAMETER Device
+The name or IP address of the device that you wish to ping.
+.PARAMETER Timeout
+How long to wait until deciding that the device is just not going to wake up.
+This is measured in pings.  The value of the timeout corresponds to how many ping packets are sent.
+If you leave this parameter out then it defaults to 60 (ie ping the device 60 times) which is usually plenty of time for a machine to wake up and respond.
+.PARAMETER SecondsDelay
+Once the device responds to ping, you can enter the number of seconds that you wish to delay by.
+This is useful as a device will often respond to ping without being fully initialised and you are unable
+to perform remote operations on it until then.
+If you leave this parameter out then it defaults to 10 seconds which seems about right for my work environment.
+(Feel free to season to taste)
+Set this to 0 if you do not wish to have an additional delay.
+.EXAMPLE
+Await-PingResponse -Device TestComputer
+Ping the device called 'TestComputer' 60 times.  If it responds to ping within 10 attempts then delay for 10 seconds.
+.EXAMPLE
+Await-PingResponse -Device TestComputer -Timeout 10 -SecondsDelay 0
+Ping the device called 'TestComputer' 10 times.  If it responds to ping within 10 attempts then do nothing.
+.EXAMPLE
+Await-PingResponse -Device 172.18.20.3 -SecondsDelay 15
+Ping the device I.P addressof 172.18.20.3 60 times.  If it responds to ping within 10 attempts then delay by 15 seconds.
+.INPUTS
+None.  You cannot pipe objects to Await-PingResponse
+.NOTES
+Created by:   OH
+Date:         16 April 2015
+Version:      1.0 
+Enhancements: Not required for my particular purposes but this could be changed to a workflow to allow pinging multiple computers at once
+.LINK
+https://github.com/ozthe2/Powershell
+#>
 
 function Await-PingResponse {
     param (
-        [string]$Computername,
-        [int]$Timeout=60,
-        [int]$SecondsDelay=15
+        [Parameter(Mandatory=$True)]
+        [string]$Device,
+        [int]$Timeout=60,        
+        [int]$SecondsDelay=10
     )
 
     $x=1
-
+    
     do {
-
-        write-progress -Activity "Waiting for $Computername to respond..." -PercentComplete ($x*100/$Timeout)
+        write-progress -id 1 -Activity "Waiting for $Device to respond.." -PercentComplete ($x*100/$Timeout) -Status "Attempting $x of $Timeout pings before timeout"        
         
-        $result = test-connection $Computername -Quiet -Count 1       
+        $result = test-connection $Device -Quiet -Count 1       
 
         if ($x -eq $Timeout) {
-            write-output "Timeout expired..cannot wake this computer"
+            write-output "Timeout expired..$Device has not responded to $Timeout ping attempts."
             exit
         }
 
         $x++
 
-    } while ($Result -eq $false)
+    } while (!($Result))
 
+        
+    write-progress -id 1 -Activity "$Device has responded to ping requests" -PercentComplete (100) 
+    Write-output "$Device is responding to ping requests."   
 
-    #Computer is responding to ping request - initiate a slight delay so that the networking components can fully initialise...
-    write-progress -Activity "$Computername has responded to ping requests." -PercentComplete (100)    
-
-    for ($i=0; $i -le $SecondsDelay; $i++) {
-        $Counter = $SecondsDelay
-        Write-Progress -Id 2 -Activity "Computer is UP!  Waiting for additional $SecondsDelay seconds to ensure network stack fully operational"  -PercentComplete ($i*100/$SecondsDelay)        
-        sleep 1
-    }  
-
+    $Counter = $SecondsDelay
+    #device is responding to ping request - initiate a slight delay so that the networking components can fully initialise...
+    if ($SecondsDelay -gt 0) {
+        for ($i=0; $i -le $SecondsDelay; $i++) {
+            $counter--            
+            Write-Progress -Id 2 -ParentId 1 -Activity "device is UP!  Waiting for additional $Counter seconds to ensure network stack fully operational"  -PercentComplete ($i*100/$SecondsDelay)
+            sleep 1
+        }  
+    }
+    
     Write-Progress -Id 2 -Completed $True
-
-
 }
-
-Await-PingResponse -Computername MyTestComputer -SecondsDelay 10
