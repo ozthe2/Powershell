@@ -28,10 +28,25 @@ write-output "Creating the new printer port on the print server..."
     } catch{
         write-error "Unable to create the printer port."
         $ThePrinter.printername |  Out-File c:\PrinterPortCreationErrors.err -Append
+    }
 }
 
 
+Function Remove-OldPrinterPort {
+param (
+[psobject]$ThePrinter
+)
+
+write-output "Removing the old printer port on the print server..."
+    try {
+        Remove-PrinterPort -ComputerName $printserver -name $ThePrinter.port        
+        write-output "Port deleted!"
+    } catch{
+        write-error "Unable to create the printer port."
+        $ThePrinter.printername |  Out-File c:\OldPrinterPortRemovalErrors.err -Append
+    }
 }
+
 
 
 Function Modify-PrinterPortOnPrinter {
@@ -47,10 +62,6 @@ param (
         write-error "Unable to modify port on printer"
         $ThePrinter.printername |  Out-File c:\PrinterPortModifyError.err -Append
     }
-
-
-
-
 
 }#end Modify-PrinterPort
 
@@ -122,7 +133,7 @@ Function Add-NewDHCPReservation {
     try {
         Add-DhcpServerv4Reservation -scopeid $printerobj.scopeid -ComputerName $printerobj.dhcpserver -IPAddress $Global:NewIP -ClientId $printerobj.mac -Name $printerobj.printername -Type Both -ea Stop 
     } catch {
-        $ReservationErrMsg = "Unable to add reservation for scope: $printerobj.scopeid, New IP address of: $($Global:newip), Printer name: $($printerobj.printername) Printer MAC: $($printerobj.mac)"
+        $ReservationErrMsg = "Unable to add reservation for scope: $($printerobj.scopeid), New IP address of: $($Global:newip), Printer name: $($printerobj.printername) Printer MAC: $($printerobj.mac)"
         write-warning $ReservationErrMsg
         $ReservationErrMsg | out-file "c:\ReservationAddError.err"         
     }
@@ -162,6 +173,12 @@ foreach ($CSVPrinter in $PrinterstoMigrate) {
                 $a = $CSVPrinter.PrinterName.replace(" ","") 
                 $Global:PrinterDNSName = $a
 
+
+
+
+        #open the 'printer admin web page in order to set it to dhcp and change netbiosname
+        start-process "http://$($obj.PrinterIP)"
+        pause
           
         Write-output "Processing $($obj.PrinterName)`n"
 
@@ -179,6 +196,8 @@ foreach ($CSVPrinter in $PrinterstoMigrate) {
         Add-NewDHCPReservation -PrinterObj $obj
 
 
+        <#  ------------- May not be required! -------------------
+
         #Delete existing DNS entry
         
         try {
@@ -193,15 +212,18 @@ foreach ($CSVPrinter in $PrinterstoMigrate) {
         Add-DnsServerResourceRecordA -ComputerName $DNSServer -name $Global:PrinterDNSName -ZoneName $dnszone -IPv4Address $Global:NewIP -CreatePtr -ea SilentlyContinue
         write-output "Done!"
 
-
+            ------------------------------------------------------  #>
 
 
             
         #Create the new TCP port on the print server
         Create-NewPrinterPort -ThePrinter $obj
-
+                
         #Modify the existing printer port on the printer to the new one.
         Modify-PrinterPortOnPrinter -ThePrinter $obj
+
+        #Remove the new TCP port on the print server
+        Remove-OldPrinterPort -ThePrinter $Obj
 
         #Write-output of printer details to text file...
         "            Printer Name: $($obj.PrinterName)" | out-file c:\Printers.txt -Append
@@ -212,8 +234,7 @@ foreach ($CSVPrinter in $PrinterstoMigrate) {
         "              Port (New): $($Global:PrinterDNSName)" | out-file c:\Printers.txt -Append        
         "--------------------------------------------------`n" | out-file c:\Printers.txt -Append
 
-        #open the 'printer admin web page
-        start-process "http://$($obj.PrinterIP)"
+        
 
        
     
