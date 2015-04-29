@@ -1,9 +1,9 @@
 
 $Global:NewIP
 $Global:PrinterDNSName
-$PrintServer = "dhcp1"
-$DHCPServer = "dhcp1"
-$DNSServer = "dhcp1"
+$PrintServer = "MyPrintServer"
+$DHCPServer = "MyDNSServer"
+$DNSServer = "MyDNSServer"
 $DNSZone = "oh.local"
 #Csv file should contain three headers of: Scope,PrinterName,MAC
 $PathToCSV = "C:\printers.csv"
@@ -12,9 +12,6 @@ write-output "Reading in CSV file..."
 $PrintersToMigrate = import-csv $PathToCSV
 write-output "Done"
 write-output "-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-`n"
-
-
-
 
 Function Create-NewPrinterPort {
 param (
@@ -30,24 +27,21 @@ write-output "Creating the new printer port on the print server..."
         $ThePrinter.printername |  Out-File c:\PrinterPortCreationErrors.err -Append
     }
 }
-
-
 Function Remove-OldPrinterPort {
 param (
 [psobject]$ThePrinter
 )
 
-write-output "Removing the old printer port on the print server..."
+write-output "Removing the old printer port: $($theprinter.port) on the print server..."
     try {
-        Remove-PrinterPort -ComputerName $printserver -name $ThePrinter.port        
+        $OldPort = $ThePrinter.port
+        Remove-PrinterPort -ComputerName $printserver -name $OldPort -ea stop       
         write-output "Port deleted!"
     } catch{
-        write-error "Unable to create the printer port."
+        write-error "Unable to remove the old printer port."
         $ThePrinter.printername |  Out-File c:\OldPrinterPortRemovalErrors.err -Append
     }
 }
-
-
 
 Function Modify-PrinterPortOnPrinter {
 param (
@@ -64,9 +58,6 @@ param (
     }
 
 }#end Modify-PrinterPort
-
-
-
 
 Function Extract-IPAddress {
     param (
@@ -139,8 +130,6 @@ Function Add-NewDHCPReservation {
     }
 
 
-
-
 }#end Add_NewDHCPReservation
 
 #Script Entry point....
@@ -172,11 +161,8 @@ foreach ($CSVPrinter in $PrinterstoMigrate) {
 
                 $a = $CSVPrinter.PrinterName.replace(" ","") 
                 $Global:PrinterDNSName = $a
-
-
-
-
-        #open the 'printer admin web page in order to set it to dhcp and change netbiosname
+                
+        #open the printer admin web page in order to set it to dhcp and change netbiosname
         start-process "http://$($obj.PrinterIP)"
         pause
           
@@ -195,26 +181,30 @@ foreach ($CSVPrinter in $PrinterstoMigrate) {
         #Add new reservation to subnet specified in the CSV
         Add-NewDHCPReservation -PrinterObj $obj
 
-
-        <#  ------------- May not be required! -------------------
-
         #Delete existing DNS entry
-        
         try {
-            Get-DnsServerResourceRecord -ComputerName $DNSServer -RRType A -Name $Global:PrinterDNSName -ZoneName $DNSZone -ea stop | Remove-DnsServerResourceRecord -ComputerName $DNSServer -ZoneName $DNSZone -ea stop
-            write-output "Deleting existing DNS entry"
+            write-output "Obtaining current DHCP lease in order to obtain netbios name"
+            $record = (get-dhcpserverv4lease -ComputerName $DHCPServer -IPAddress $obj.printerip -ea Stop).hostname
+            $record = $record.split(".")[0] 
         } catch {
-            write-warning "No existing DNS entry found for $($Global:PrinterDNSName)"
+            write-output "No existing lease found"
+        }
+                
+        try {
+           # Get-DnsServerResourceRecord -ComputerName $DNSServer -RRType A -Name $Global:PrinterDNSName -ZoneName $DNSZone -ea stop | Remove-DnsServerResourceRecord -ComputerName $DNSServer -ZoneName $DNSZone -ea stop
+            write-output "Deleting DNS A record if it exists..."
+            Remove-DnsServerResourceRecord -ComputerName $DHCPServer -ZoneName $DNSZone -rrtype A -name $record
+            write-output "Deleting existing DNS entry of $record"
+            
+        } catch {
+            write-warning "No existing DNS entry found for $record"
+            $record = "No Existing Record Found"
         }
 
         #Create new DNS entry
         write-output "Adding new DNS record"
         Add-DnsServerResourceRecordA -ComputerName $DNSServer -name $Global:PrinterDNSName -ZoneName $dnszone -IPv4Address $Global:NewIP -CreatePtr -ea SilentlyContinue
         write-output "Done!"
-
-            ------------------------------------------------------  #>
-
-
             
         #Create the new TCP port on the print server
         Create-NewPrinterPort -ThePrinter $obj
@@ -223,23 +213,21 @@ foreach ($CSVPrinter in $PrinterstoMigrate) {
         Modify-PrinterPortOnPrinter -ThePrinter $obj
 
         #Remove the new TCP port on the print server
-        Remove-OldPrinterPort -ThePrinter $Obj
+        #(This doesn't work for PAPERCUT_ ports)
+        #Remove-OldPrinterPort -ThePrinter $Obj
 
         #Write-output of printer details to text file...
         "            Printer Name: $($obj.PrinterName)" | out-file c:\Printers.txt -Append
+        "      NetBios Name (Old): $Record" | out-file c:\Printers.txt -Append
+        "      NetBios Name (New): $($Global:PrinterDNSName)" | out-file c:\Printers.txt -Append
         "                     MAC: $($obj.mac)" | out-file c:\Printers.txt -Append        
         "           IP (Original): $($obj.PrinterIP)" | out-file c:\Printers.txt -Append
         "                IP (New): $($Global:NewIP)" | out-file c:\Printers.txt -Append
         "              Port (Old): $($printer.PortName)" | out-file c:\Printers.txt -Append
         "              Port (New): $($Global:PrinterDNSName)" | out-file c:\Printers.txt -Append        
         "--------------------------------------------------`n" | out-file c:\Printers.txt -Append
-
         
-
-       
-    
     }#End If
 
     write-output "`n-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-`n"   
 }#End Foreach
-
