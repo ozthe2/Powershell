@@ -1,0 +1,53 @@
+<#
+.Synopsis
+Deletes user profiles
+.DESCRIPTION
+Deletes user profiles on a computer.  Will not delete 'special' accounts or logged in users.
+This process is run as a 'job' on each computer in order to run as quickly as possible when you have multiple computers.
+If you wish to see the job status, simply type the following in your powershell window (assuming you haven't closed it): get-job -IncludeChildJob
+.PARAMETER ComputerName
+The name of the computer on which you wish to delete the user profiles.
+.EXAMPLE
+Delete-Profiles -ComputerName Computer1, Computer2, Computer3
+
+Deletes the local user profiles on the computers called Computer1, Computer2 and Computer3
+.EXAMPLE
+get-content C:\ComputerNames.txt | Delete-Profiles
+
+Deletes the local user profiles on the computers contained in the text file
+.NOTES
+Version: 1.0
+Date: 11 May 2015
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell
+#>
+
+Function Delete-Profiles {
+
+        [CmdletBinding()]
+        
+        Param(              
+            [PARAMETER(Mandatory=$True,
+            ValueFromPipeline=$True,
+            ValueFromPipelineByPropertyName=$True)]        
+            [string[]]$ComputerName
+        )
+
+        PROCESS {
+    
+            invoke-command -ComputerName $ComputerName -ScriptBlock {
+                $ProfileToDelete=Get-WmiObject Win32_UserProfile -Filter "loaded = 'FALSE' AND special = 'FALSE'"
+        
+                foreach ($profile in $ProfileToDelete) { 
+                    $profile.delete() 
+                }
+            } -AsJob -JobName 'Profile Deletions'#end Invoke-command
+        }#End PROCESS
+
+        END {
+            Write-Output "`nThe profile deletion jobs have all been started.  To see the status of the jobs, please type: get-job -IncludeChildJob in your powershell console."
+        }    
+} #end function
