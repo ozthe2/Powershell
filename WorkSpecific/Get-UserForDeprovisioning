@@ -1,22 +1,25 @@
 <#
 .Synopsis
-Gets a user that can be deprovisioned in A.D
+Gets users that can be deprovisioned in A.D
 .DESCRIPTION
 Creates a filtered result of users either staff or students that meet predertmined criterea that can be deleted in Active Directory.
 .PARAMETER UserType
 Used for targetting either staff or student accounts.
+.PARAMETER DaysExpired
+The number of days subtracted from todays date.  The resultant date is used in the filter to only get accounts whose AccountExpirationDate is less than or equal to this date.
 .PARAMETER DoNotDisplayUsers
 If you specify this switch then the only output will be the total number of users that can be deleted.  If you do not use this switch then the user account data will be output as well as the total count.
 .EXAMPLE
-Get-UserForDeProvisioning -UserType Student
+Get-UserForDeProvisioning -UserType Student -DaysExpired 540 -DoNotDisplayUsers
 
-This gets a list of all Student users that can be deleted from Active directory
+The above command will produce a total count of the number of student users whose accounts have an expiry date of 18 months from todays date (or earlier)
 .EXAMPLE
-Get-UserForDeProvisioning -UserType Staff
+Get-UserForDeProvisioning -UserType Staff -DaysExpired 360
 
-This gets a list of all Staff users that can be deleted from Active directory
+
+The above command will produce a total count of the number of staff users whose accounts have an expiry date of 13 months from todays date (or earlier) and will also display the accounts.
 .NOTES
-Version: 1
+Version: 1.3
 Date: 12 May 2015
 Created By: OH
 .LINK
@@ -33,6 +36,9 @@ Function Get-UserForDeProvisioning {
             [PARAMETER(Mandatory=$True)]
             [ValidateSet("Staff","Student")]                  
             [string]$UserType,
+
+            [PARAMETER(Mandatory=$True)]
+            [int]$DaysExpired,
             
             [PARAMETER(Mandatory=$False)]
             [Switch]$DoNotDisplayUsers
@@ -43,11 +49,11 @@ Function Get-UserForDeProvisioning {
         #Staff accounts Target deletion date is 12 months from current date, Students 18 months from current date.
         #Also set the search root for Get-ADUser and then get the users based on different filter criterea
         if ($usertype -eq "Staff") {            
-            [datetime]$TargetDeletionDate = (get-date).AddYears(-1)
-            $SearchRoot='ou=XXX,ou=XXX,ou=XXX,ou=XXX,dc=XXX,dc=XXXl'            
+            [datetime]$TargetDeletionDate = (get-date).AddDays(-$DaysExpired)
+            $SearchRoot='ou=xxx,ou=xxx,ou=xxx,ou=xxx,dc=xxx,dc=xxx'            
         } else {            
-            [datetime]$TargetDeletionDate = (get-date).AddMonths(-18)                       
-            $SearchRoot='ou=XXX,ou=XXX,ou=XXX,ou=XXX,dc=XXX,dc=XXX'           
+            [datetime]$TargetDeletionDate = (get-date).AddDays(-$DaysExpired)                       
+            $SearchRoot='ou=xxx,ou=xxx,ou=xxx,ou=xxx,dc=xxx,dc=xxx'           
         }
 
 
@@ -85,9 +91,12 @@ Function Get-UserForDeProvisioning {
 
     END {            
         if ($usertype -eq "Staff") {
-            write-output "$($FinalFilteredUsers.count) STAFF users are able to be deleted from Active Directory"
+            write-output "$($FinalFilteredUsers.count) STAFF users are able to be deleted from Active Directory."
         } else {
-            write-output "$($FinalFilteredUsers.count) STUDENT users are able to be deleted from Active Directory"
+            write-output "$($FinalFilteredUsers.count) STUDENT users are able to be deleted from Active Directory."
         }    
     }#End END
 }#End DeProvision-User
+
+Get-UserForDeProvisioning -UserType Staff -DaysExpired 360
+
