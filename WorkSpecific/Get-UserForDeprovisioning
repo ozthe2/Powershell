@@ -9,6 +9,7 @@ Used for targetting either staff or student accounts.
 The number of days subtracted from todays date.  The resultant date is used in the filter to only get accounts whose AccountExpirationDate is less than or equal to this date.
 .PARAMETER DoNotDisplayUsers
 If you specify this switch then the only output will be the total number of users that can be deleted.  If you do not use this switch then the user account data will be output as well as the total count.
+Do NOT use this switch if you will be piping the output to another function \ cmdlet.
 .EXAMPLE
 Get-UserForDeProvisioning -UserType Student -DaysExpired 540 -DoNotDisplayUsers
 
@@ -16,10 +17,13 @@ The above command will produce a total count of the number of student users whos
 .EXAMPLE
 Get-UserForDeProvisioning -UserType Staff -DaysExpired 360
 
-
 The above command will produce a total count of the number of staff users whose accounts have an expiry date of 13 months from todays date (or earlier) and will also display the accounts.
+.INPUTS
+None.  You cannot pipe objects to Get-UserForDeprovisioning.
+.OUTPUTS
+Microsoft.ActiveDirectory.Management.ADUser
 .NOTES
-Version: 1.3
+Version: 1.4
 Date: 12 May 2015
 Created By: OH
 .LINK
@@ -30,32 +34,30 @@ https://github.com/ozthe2/Powershell.git
 
 Function Get-UserForDeProvisioning {
 
-            [CmdletBinding()]
+    [CmdletBinding()]
         
-        Param(              
-            [PARAMETER(Mandatory=$True)]
-            [ValidateSet("Staff","Student")]                  
-            [string]$UserType,
+    Param(              
+        [PARAMETER(Mandatory=$True)]
+        [ValidateSet("Staff","Student")]                  
+        [string]$UserType,
 
-            [PARAMETER(Mandatory=$True)]
-            [int]$DaysExpired,
+        [PARAMETER(Mandatory=$True)]
+        [int]$DaysExpired,
             
-            [PARAMETER(Mandatory=$False)]
-            [Switch]$DoNotDisplayUsers
-
-         )
+        [PARAMETER(Mandatory=$False)]
+        [Switch]$DoNotDisplayUsers
+        )
 
     BEGIN {         
         #Staff accounts Target deletion date is 12 months from current date, Students 18 months from current date.
         #Also set the search root for Get-ADUser and then get the users based on different filter criterea
         if ($usertype -eq "Staff") {            
             [datetime]$TargetDeletionDate = (get-date).AddDays(-$DaysExpired)
-            $SearchRoot='ou=xxx,ou=xxx,ou=xxx,ou=xxx,dc=xxx,dc=xxx'            
+            $SearchRoot='ou=XXX,ou=XXX,ou=XXX,ou=XXX,dc=XXX,dc=XXX'            
         } else {            
             [datetime]$TargetDeletionDate = (get-date).AddDays(-$DaysExpired)                       
-            $SearchRoot='ou=xxx,ou=xxx,ou=xxx,ou=xxx,dc=xxx,dc=xxx'           
+            $SearchRoot='ou=XXX,ou=XXX,ou=XXX,ou=XXX,dc=XXX,dc=XXX'
         }
-
 
         #Get users based on our filter criterea (Had to do this as a where clause...I originally coded this as a filter, however I could not test for $NULL on a date attribute within a filter as it is not allowed!
         $Users = Get-ADUser -Filter *  -properties sn,displayname,accountexpirationdate,enabled,mail,lastlogondate,accountexpires,userPrincipalName,pwdlastset,employeeNumber,employeeType,whencreated,LastLogonTimeStamp -SearchBase $SearchRoot -SearchScope OneLevel | ? {($_.AccountExpirationDate -ge "01/01/2000" -and $_.AccountExpirationDate -le $targetdeletiondate) -and $_.employeeType -eq $usertype -and $_.whencreated -le $targetdeletiondate -and (($_.Lastlogondate -ge "01/01/2000" -and $_.lastlogondate -le $targetdeletiondate) -or $_.lastlogondate -eq $NULL)}
@@ -90,6 +92,7 @@ Function Get-UserForDeProvisioning {
     }#End PROCESS
 
     END {            
+        
         if ($usertype -eq "Staff") {
             write-output "$($FinalFilteredUsers.count) STAFF users are able to be deleted from Active Directory."
         } else {
@@ -97,6 +100,3 @@ Function Get-UserForDeProvisioning {
         }    
     }#End END
 }#End DeProvision-User
-
-Get-UserForDeProvisioning -UserType Staff -DaysExpired 360
-
