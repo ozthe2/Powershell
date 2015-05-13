@@ -1,0 +1,94 @@
+<#
+.Synopsis
+Deletes user accounts from Active Directory
+.DESCRIPTION
+Receives input piped from Get-UserForDeprovisioning and deletes the Active Directory accounts received in the pipeline.
+Two log files (one success and one error) are saved to c:\
+.PARAMETER DeprovisionedUser
+This is an object of type Microsoft.ActiveDirectory.Management.ADUser.  This object can be generated from Get-UserForDeprovisioning
+.PARAMETER WhatIf
+Performs a non-destructive operation.  No users will be deleted. You will only see which users *would* have been deleted had you run it without this switch.
+.EXAMPLE
+Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | select -first 5 | delete-deprovisioneduser -WhatIf
+
+The above command will show you perform a "whatif" operation on the first 5 accounts received in the pipeline.  No actual deletions will take place.
+.EXAMPLE
+Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | select -first 5 | delete-deprovisioneduser
+
+The above command will delete the first 5 accounts received in the pipeline.
+.INPUTS
+You can pipe the output of Get-UserForDeprovisioning to this function.
+.OUTPUTS
+None
+.NOTES
+Version: 1.0
+Date: 13 May 2015
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+.LINK
+Get-UserForDeprovisioning
+#>
+
+Function Delete-DeprovisionedUser {
+
+    [CmdletBinding()]
+        
+    Param(              
+        [PARAMETER(Mandatory=$True,
+        ValueFromPipeline=$True)]                
+        [psobject[]]$DeprovisionedUser,
+
+        [PARAMETER(Mandatory=$False)]
+        [Switch]$WhatIf
+        )
+
+    BEGIN {
+        #Initialise log files
+        write-output "Start Processing: $(get-date)" | Out-File "c:\Delete-DeprovisionedUser.log" -Encoding ascii -Append
+        write-output "Start Processing: $(get-date)" | Out-File "c:\Delete-DeprovisionedUser.err" -Encoding ascii -Append
+
+        $ErrorCount = 0
+        $UsersProcessed = 0
+    
+    }#End BEGIN
+
+    PROCESS {
+
+        if ($whatif) {    
+            Try {                
+                remove-aduser -Identity $DeprovisionedUser.samaccountname -WhatIf -ea Stop
+                $UsersProcessed++                
+            }Catch {
+                write-warning "Unable to delete $($DeprovisionedUser.samaccountname) from active directory."                
+            }#end Try\Catch
+        } else {
+            #LIVE A.D DELETIONS!
+            write-output "LIVE AD DELETIONS!"
+            Try {
+                write-verbose "Deleting user: $($DeprovisionedUser.samaccountname)" 
+                remove-aduser -Identity $DeprovisionedUser.samaccountname -WhatIf -ea Stop
+                $usersprocessed++
+                $DeprovisionedUser.samaccountname  | Out-File "c:\Delete-DeprovisionedUser.log" -Append -Encoding ascii
+            }Catch {
+                write-warning "Unable to delete $($DeprovisionedUser.samaccountname) from active directory."
+                $DeprovisionedUser.samaccountname  | Out-File "c:\Delete-DeprovisionedUser.err" -Append -Encoding ascii
+                $ErrorCount++
+            }#end Try\Catch
+        }#End else        
+    }#end PROCESS
+
+    END {
+        #Update log files        
+        write-output "$UsersProcessed users deleted from Active Directory" | Out-File "c:\Delete-DeprovisionedUser.log" -Encoding ascii -Append
+        write-output "Finished Processing: $(get-date)" | Out-File "c:\Delete-DeprovisionedUser.log" -Encoding ascii -Append
+        write-output "" | Out-File "c:\Delete-DeprovisionedUser.log" -Encoding ascii -Append
+        
+        if ($ErrorCount -eq 0) {write-output "No reported errors." | Out-File "c:\Delete-DeprovisionedUser.err" -Encoding ascii -Append}
+        write-output "Finished Processing: $(get-date)" | Out-File "c:\Delete-DeprovisionedUser.err" -Encoding ascii -Append
+        write-output "" | Out-File "c:\Delete-DeprovisionedUser.err" -Encoding ascii -Append
+    }
+
+}#end function
