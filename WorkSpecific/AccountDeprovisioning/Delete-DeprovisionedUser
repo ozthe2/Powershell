@@ -9,19 +9,29 @@ This is an object of type Microsoft.ActiveDirectory.Management.ADUser.  This obj
 .PARAMETER WhatIf
 Performs a non-destructive operation.  No users will be deleted. You will only see which users *would* have been deleted had you run it without this switch.
 .EXAMPLE
+delete-deprovisioneduser BloggsF, GreenD
+
+The above command deletes the two users BloggsF and GreenD from Active Directory.
+
+.EXAMPLE
+'BloggsF','GreenD' | delete-deprovisioneduser
+
+The above command deletes the two users BloggsF and GreenD from Active Directory.
+
+.EXAMPLE
 Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | select -first 5 | delete-deprovisioneduser -WhatIf
 
-The above command will show you perform a "whatif" operation on the first 5 accounts received in the pipeline.  No actual deletions will take place.
+The above command will show you perform a "whatif" operation on the first 5 accounts received in the pipeline from 'Get-UserForDepProvisioning'.  No actual deletions will take place.
 .EXAMPLE
 Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | select -first 5 | delete-deprovisioneduser
 
-The above command will delete the first 5 accounts received in the pipeline.
+The above command will delete the first 5 accounts received in the pipeline from 'Get-UserForDepProvisioning'.
 .INPUTS
 You can pipe the output of Get-UserForDeprovisioning to this function.
 .OUTPUTS
 None
 .NOTES
-Version: 1.0
+Version: 1.1
 Date: 13 May 2015
 Created By: OH
 .LINK
@@ -37,9 +47,11 @@ Function Delete-DeprovisionedUser {
     [CmdletBinding()]
         
     Param(              
-        [PARAMETER(Mandatory=$True,
-        ValueFromPipeline=$True)]                
-        [psobject[]]$DeprovisionedUser,
+        [PARAMETER(Mandatory=$false,
+        ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$true)]
+        [Alias("SamAccountName")]                        
+        [string[]]$DeprovisionedUser,      
+        
 
         [PARAMETER(Mandatory=$False)]
         [Switch]$WhatIf
@@ -52,32 +64,38 @@ Function Delete-DeprovisionedUser {
 
         $ErrorCount = 0
         $UsersProcessed = 0
-    
+   
     }#End BEGIN
 
     PROCESS {
+        foreach ($User in $DeprovisionedUser) {    
 
-        if ($whatif) {    
-            Try {                
-                remove-aduser -Identity $DeprovisionedUser.samaccountname -WhatIf -ea Stop
-                $UsersProcessed++                
-            }Catch {
-                write-warning "Unable to delete $($DeprovisionedUser.samaccountname) from active directory."                
-            }#end Try\Catch
-        } else {
-            #LIVE A.D DELETIONS!
-            write-output "LIVE AD DELETIONS!"
-            Try {
-                write-verbose "Deleting user: $($DeprovisionedUser.samaccountname)" 
-                remove-aduser -Identity $DeprovisionedUser.samaccountname -WhatIf -ea Stop
-                $usersprocessed++
-                $DeprovisionedUser.samaccountname  | Out-File "c:\Delete-DeprovisionedUser.log" -Append -Encoding ascii
-            }Catch {
-                write-warning "Unable to delete $($DeprovisionedUser.samaccountname) from active directory."
-                $DeprovisionedUser.samaccountname  | Out-File "c:\Delete-DeprovisionedUser.err" -Append -Encoding ascii
-                $ErrorCount++
-            }#end Try\Catch
-        }#End else        
+            if ($whatif) {    
+                Try {                
+                    remove-aduser -Identity $User -WhatIf -ea Stop
+                    $UsersProcessed++                
+                }Catch {
+                    write-warning "Unable to delete $($User) from active directory."                
+                }#end Try\Catch
+            } else {
+                #LIVE A.D DELETIONS!
+                write-output "LIVE AD DELETIONS!"
+                Try {
+                    write-verbose "Deleting user: $($User.samaccountname)" 
+                    remove-aduser -Identity $User.samaccountname -WhatIf -ea Stop
+                    $usersprocessed++
+                    $User.samaccountname  | Out-File "c:\Delete-DeprovisionedUser.log" -Append -Encoding ascii
+                }Catch {
+                    write-warning "Unable to delete $($User.samaccountname) from active directory."
+                    $User.samaccountname  | Out-File "c:\Delete-DeprovisionedUser.err" -Append -Encoding ascii
+                    $ErrorCount++
+                }#end Try\Catch
+            }#End else
+       }#end foreach
+
+
+
+
     }#end PROCESS
 
     END {
