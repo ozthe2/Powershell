@@ -21,17 +21,17 @@ The above command deletes the two users BloggsF and GreenD from Active Directory
 .EXAMPLE
 Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | select -first 5 | delete-deprovisioneduser -WhatIf
 
-The above command will show you perform a "whatif" operation on the first 5 accounts received in the pipeline from 'Get-UserForDepProvisioning'.  No actual deletions will take place.
+The above command will perform a "whatif" operation on the first 5 accounts received in the pipeline from 'Get-UserForDeProvisioning'.  No actual deletions will take place.
 .EXAMPLE
 Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | select -first 5 | delete-deprovisioneduser
 
-The above command will delete the first 5 accounts received in the pipeline from 'Get-UserForDepProvisioning'.
+The above command will delete the first 5 accounts received in the pipeline from 'Get-UserForDeProvisioning'.
 .INPUTS
 You can pipe the output of Get-UserForDeprovisioning to this function.
 .OUTPUTS
 None
 .NOTES
-Version: 1.1
+Version: 1.2
 Date: 13 May 2015
 Created By: OH
 .LINK
@@ -92,9 +92,6 @@ Function Delete-DeprovisionedUser {
                 }#end Try\Catch
             }#End else
        }#end foreach
-
-
-
 
     }#end PROCESS
 
