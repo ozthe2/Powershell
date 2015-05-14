@@ -2,9 +2,9 @@
 .Synopsis
 Gets users that can be deprovisioned in A.D
 .DESCRIPTION
-Creates a filtered result of users either staff or students that meet predertmined criterea that can be deleted in Active Directory.
+Creates a filtered result of users either staff or students that meet predertmined criterea that can be deleted in Active Directory.  A log of SamAccountNames is created: c:\Get-UserForDeprovisioning.log
 .PARAMETER UserType
-Used for targetting either staff or student accounts.
+Used for targeting either staff or student accounts.
 .PARAMETER DaysExpired
 The number of days subtracted from todays date.  The resultant date is used in the filter to only get accounts whose AccountExpirationDate is less than or equal to this date.
 .PARAMETER DoNotDisplayUsers
@@ -56,10 +56,10 @@ Function Get-UserForDeProvisioning {
         #Also set the search root for Get-ADUser and then get the users based on different filter criterea
         if ($usertype -eq "Staff") {            
             [datetime]$TargetDeletionDate = (get-date).AddDays(-$DaysExpired)
-            $SearchRoot='ou=Current,ou=Staff,ou=Users,ou=College,dc=Chi,dc=Local'            
+            $SearchRoot='ou=XXX,ou=XXX,ou=XXX,ou=XXX,dc=XXX,dc=XXX'            
         } else {            
             [datetime]$TargetDeletionDate = (get-date).AddDays(-$DaysExpired)                       
-            $SearchRoot='ou=Current,ou=Students,ou=Users,ou=College,dc=Chi,dc=Local'           
+            $SearchRoot='ou=XXX,ou=XXX,ou=XXX,ou=XXX,dc=XXX,dc=XXX'
         }
 
 
@@ -85,22 +85,28 @@ Function Get-UserForDeProvisioning {
              }#end foreach
         }#end else
 
+        $(get-date)| out-file "c:\Get-UserForDeprovisioning.log" -Encoding ascii -Append
+
     }#End Begin
 
     PROCESS {
         #Create users as objects for output here...
-        if (!$DoNotDisplayUsers){
-            $FinalFilteredUsers.samaccountname
+        if (!$DoNotDisplayUsers){            
+            $FinalFilteredUsers.samaccountname | out-file "c:\Get-UserForDeprovisioning.log" -Encoding ascii -Append
+            $FinalFilteredUsers.samaccountname            
         }
             
     }#End PROCESS
 
-    END {            
-        
-        if ($usertype -eq "Staff") {
-            write-output "$($FinalFilteredUsers.count) STAFF users are able to be deleted from Active Directory."
-        } else {
+    END {
+        if ($usertype -eq "Staff") {            
+            write-output "$($FinalFilteredUsers.count) STAFF users are able to be deleted from Active Directory." | out-file "c:\Get-UserForDeprovisioning.log" -Encoding ascii -Append
+            write-output "$($FinalFilteredUsers.count) STAFF users are able to be deleted from Active Directory." 
+            write-output "" | out-file "c:\Get-UserForDeprovisioning.log" -Encoding ascii -Append
+        } else {            
+            write-output "$($FinalFilteredUsers.count) STUDENT users are able to be deleted from Active Directory." | out-file "c:\Get-UserForDeprovisioning.log" -Encoding ascii -Append
             write-output "$($FinalFilteredUsers.count) STUDENT users are able to be deleted from Active Directory."
+            write-output "" | out-file "c:\Get-UserForDeprovisioning.log" -Encoding ascii -Append
         }    
     }#End END
 }#End DeProvision-User
