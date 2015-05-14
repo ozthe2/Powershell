@@ -72,12 +72,12 @@ Function Remove-DeprovisionedUser {
             if ($whatif) {    
                 Try {                
                     remove-aduser -Identity $User -WhatIf -ea Stop
-                    $User  | Out-File "c:\Remove-DeprovisionedUser.log" -Append -Encoding ascii
+                    $User | Out-File "c:\Remove-DeprovisionedUser.log" -Append -Encoding ascii
                     $UsersProcessed++  
                     $user              
                 }Catch {
                     $user | Out-File "c:\Remove-DeprovisionedUser.err" -Append -Encoding ascii               
-                    write-warning "Unable to delete $($User) from active directory."                     
+                    write-warning "Unable to delete $User from active directory."                     
                     $ErrorCount++
                 }#end Try\Catch
             } else {
@@ -88,8 +88,7 @@ Function Remove-DeprovisionedUser {
                     remove-aduser -Identity $User -ea Stop
                     $usersprocessed++
                     $User | Out-File "c:\Remove-DeprovisionedUser.log" -Append -Encoding ascii
-                    $user
-                    
+                    $user                    
                 }Catch {
                     write-warning "Unable to delete $User from active directory."
                     $User  | Out-File "c:\Remove-DeprovisionedUser.err" -Append -Encoding ascii
