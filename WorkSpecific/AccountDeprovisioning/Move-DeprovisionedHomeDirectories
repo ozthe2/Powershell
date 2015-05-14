@@ -67,21 +67,24 @@ Function Move-DeprovisionedHomeDirectories {
             #All staff usernames are 8 chars or less, all student usernames ar 9 chars or more.
             if ($user.length -ge 9) {
                 #Student account
-                $SourcePath = "\\server\path\path"
+                $SourcePath = "\\server\path\students"
                 $DestinationPath = "\\server\path\todelete"
 
             } else {
                 #Staff Account
-                $SourcePath = "\\server\path\path"
+                $SourcePath = "\\server\path\Staff"
                 $DestinationPath = "\\server\path\todelete"
             }
           
             if ($whatif) {                   
                 Try {                    
                     move-item "$SourcePath\$user" $DestinationPath -WhatIf -ea Stop
-                    $DirectoriesProcessed++                   
+                    $DirectoriesProcessed++
+                    "$SourcePath\$User" | Out-File "c:\Move-DeprovisionedHomeDirectories.log" -Append -Encoding ascii              
                 }catch {
-                    Write-warning "Unable to move directory: $($sourcepath)\$user"                                                     
+                    Write-warning "Unable to move directory: $($sourcepath)\$user"
+                    "$SourcePath\$User" | Out-File "c:\Move-DeprovisionedHomeDirectories.err" -Append -Encoding ascii
+                    $ErrorCount++                                                     
                 }#end catch
             }else {
                 #MOVE THE DIRECTORIES!                
