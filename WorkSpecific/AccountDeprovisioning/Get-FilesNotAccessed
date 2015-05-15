@@ -1,0 +1,75 @@
+#Checks last modified time on files
+
+Function Get-FilesNotAccessed {
+[CmdletBinding()]
+        
+    Param(              
+        [PARAMETER(Mandatory=$false)]
+        [int]$DaysSinceLastAccessed = 365,        
+
+        [PARAMETER(Mandatory=$True)]
+        [ValidateSet("Staff","Student")]                  
+        [string]$UserType,
+        
+        [PARAMETER(Mandatory=$false,
+        ValueFromPipeline=$True,ValueFromPipelineByPropertyName=$true)]
+        $LogFile = 'C:\Remove-DeprovisionedUser.log'
+        )
+
+
+    BEGIN {
+        $date = (get-date).AddDays(-$DaysSinceLastAccessed)        
+
+        if ($usertype = "Staff") {
+            $Path = '\\server\staffdocs\todelete'
+        } else {
+            $Path = '\\server\classdocs\todelete'
+        }   
+
+
+        #Initialise Logs
+        $(get-date)| out-file "c:\Get-FilesNotAccessed.log" -Encoding ascii -Append
+        $(get-date)| out-file "c:\Get-FilesNotAccessed.err" -Encoding ascii -Append
+             
+
+    }#end BEGIN
+
+
+    PROCESS {
+        foreach ($user in (get-content $logfile) | select -Skip 1) {
+                write-output "Checking: $user"         
+                
+                try {               
+                    foreach ($file in (get-childitem "$path\$user" -File -Recurse -ea Stop)) {
+                    write-verbose "$($file.fullname)"
+                        if ($file.LastWriteTime -GT $date) { 
+                            write-warning "File has been accessed!"
+                            write-warning "-----------------------"
+                            write-warning "User: $user"
+                            write-warning "File: $($file.fullName) accessed: $($file.LastWriteTime)"
+                            write-warning ""
+                            $user | out-file "c:\Get-FilesNotAccessed.log" -Encoding ascii -Append
+                            "File: $($file.fullName) accessed: $($file.LastWriteTime)" | out-file "c:\Get-FilesNotAccessed.log" -Encoding ascii -Append
+                            "" | out-file "c:\Get-FilesNotAccessed.log" -Encoding ascii -Append
+                        } 
+                    }#end inner Foreach
+                 } catch {
+                                write-error "Unable to check: $path\$user"
+                                "Unable to check: $path\$user" | out-file "c:\Get-FilesNotAccessed.err" -Encoding ascii -Append
+                                $_ | out-file "c:\Get-FilesNotAccessed.err" -Encoding ascii -Append
+                                "" | out-file "c:\Get-FilesNotAccessed.err" -Encoding ascii -Append
+                 }#end try                 
+         }#end outer foreach         
+    }#end PROCESS
+
+    END {
+        #Write date \ time to log files
+        $(get-date)| out-file "c:\Get-FilesNotAccessed.log" -Encoding ascii -Append
+        $(get-date)| out-file "c:\Get-FilesNotAccessed.err" -Encoding ascii -Append
+    }#end END
+
+}#end function
+
+Get-FilesNotAccessed -UserType Student -DaysSinceLastAccessed 260 -Verbose
+
+#Get-FilesNotAccessed -UserType Staff -Verbose
