@@ -85,7 +85,7 @@ Function Remove-DeprovisionedUser {
                 write-verbose "LIVE AD DELETIONS!"
                 Try {
                     write-verbose "Deleting user: $User" 
-                    remove-aduser -Identity $User -ea Stop
+                    remove-aduser -Identity $User -ea Stop -Confirm:$false
                     $usersprocessed++
                     $User | Out-File "c:\Remove-DeprovisionedUser.log" -Append -Encoding ascii
                     $user                    
