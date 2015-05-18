@@ -26,7 +26,7 @@ Typical usage of this suite:
 Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | select -first 5 | remove-deprovisioneduser -WhatIf | Move-DeprovisionedHomeDirectories -whatif
 
 (For actual deprovisioning)
-Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 |remove-deprovisioneduser | Move-DeprovisionedHomeDirectories
+Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | remove-deprovisioneduser | Move-DeprovisionedHomeDirectories
 
 Followed by:
 Get-FilesNotAccessed -UserType Student -DaysSinceLastAccessed 260 -Verbose
