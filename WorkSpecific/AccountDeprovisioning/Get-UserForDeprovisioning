@@ -27,12 +27,15 @@ Version: 1.6
 Date: 12 May 2015
 Created By: OH
 .LINK
+Remove-DeprovisionedUser
+.LINK
+Move-DeprovisionedHomeDirectories
+.LINK
+Get-FilesNotAccessed
+.LINK
 http://www.fearthemonkey.co.uk
 .LINK
 https://github.com/ozthe2/Powershell.git
-.LINK
-Remove-DeprovisionedUser
-Move-DeprovisionedHomeDirectories
 #>
 
 Function Get-UserForDeProvisioning {
