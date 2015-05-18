@@ -1,4 +1,4 @@
-This suite of three functions is used to deprovision expired accounts.
+This suite of four functions is used to deprovision expired accounts.
 Each function can be used individually if required.
 
 Get-UserForDeprovisioning
