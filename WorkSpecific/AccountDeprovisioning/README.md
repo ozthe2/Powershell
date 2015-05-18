@@ -15,6 +15,11 @@ Move-DeprovisionedHomeDirectories
 ---------------------------------
 This moves the users home directory to a new 'holding' location where it is pending permanent manual deletion.
 
+Get-FilesNotAccessed
+--------------------
+A 'sanity' check on the files that have been deemed 'deletable' by reporting if any have been accessed between xx days (specified by the parameter) and todays date.
+
+
 Typical usage of this suite:
 ----------------------------
 (For Testing purposes:)
@@ -22,3 +27,10 @@ Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | select -first 5 | r
 
 (For actual deprovisioning)
 Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 |remove-deprovisioneduser | Move-DeprovisionedHomeDirectories
+
+Followed by:
+Get-FilesNotAccessed -UserType Student -DaysSinceLastAccessed 260 -Verbose
+To get student files that may have been recently accessed
+
+Get-FilesNotAccessed -UserType Staff -Verbose
+To get student files that may have been recently accessed
