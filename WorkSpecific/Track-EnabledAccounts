@@ -1,0 +1,33 @@
+<#
+.Synopsis
+Tracks the number of enabled Staff and Student accounts on a daily basis
+.DESCRIPTION
+Tracks the number of enabled staff acounts that have a mail attribute of "*@chichester.ac.uk" and enabled student accounts with the mail attribute of "*@student.chichester.ac.uk".  The date and the total number of staff and student accounts are then soutput as a custom object.
+.EXAMPLE
+Track-EnabledAccounts | export-csv -NoTypeInformation -Path c:\test.csv -Append
+Generates a CSV file containing the date the script was run, the number of enabled Staff accounts whose mail attribute is like "*@chichester.ac.uk" and the number of enabled Student accounts whose mail attribute is like "*@student.chichester.ac.uk".
+.NOTES
+Version: 1.0
+Date: 19 May 2015
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell
+#>
+
+Function Track-EnabledAccounts {        
+        
+        $StudentOU = 'OU=XXX,OU=XXX,OU=XXX,DC=XXX,DC=XXX'
+        $StaffOU = 'ou=XXX,ou=XXX,ou=XXX,dc=XXX,dc=XXX'
+
+        $StudentUsers = (get-aduser -filter 'mail -like "*@student.chichester.ac.uk" -and enabled -eq $true' -SearchBase $studentou).count
+
+        $StaffUsers = (get-aduser -Filter 'mail -like "*@chichester.ac.uk" -and enabled -eq $true ' -SearchBase $staffou).count
+
+        [pscustomobject]@{
+            Date=get-date -Format ("dd-MM-yyyy")
+            StaffUsers = $StaffUsers
+            StudentUsers = $StudentUsers
+        }
+} #end function
