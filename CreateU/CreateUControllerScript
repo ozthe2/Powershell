@@ -11,7 +11,7 @@ import-Csv C:\output.csv -Header "ID","Firstname","Surname","DOB","CourseCode","
 .INPUTS
 Accepts the PSObject output from Import-UserCSV
 .NOTES
-Version: 2.0
+Version: 1.0
 Date: 17 September 2014
 Created By: OH
 .LINK
@@ -35,23 +35,23 @@ Function Create-StudentObject {
             #Path to root home dir location eg \\MyServer\Share\HomeDirs
             [PARAMETER(Mandatory=$False)]
             [String]
-            $RootHomeDirLocation = "\\MyServer\Share\HomeDirs",
+            $RootHomeDirLocation = "\\Chidata\ClassDocs\Students",
 
             #The mail domain including the @ eg "@wingtip.pri"
             [PARAMETER(Mandatory=$False)]
             [String]
-            $MailDomain = "@wingtip.pri",
+            $MailDomain = "@student.chichester.ac.uk",
 
             #Path to OU where users will be created eg "OU=Users,OU=Main,DC=wingtip,DC=pri"  
             [PARAMETER(Mandatory=$False)]
             [String]
-            $Path = "OU=Users,OU=Main,DC=wingtip,DC=pri"
+            $Path = "OU=XXX,OU=XXX,OU=XXX,OU=XXX,DC=XXX,DC=XXXl"
         )
 
     BEGIN {
 
         #Log locations (Do not append a backslash)
-        $LogLocation = "\\server\path\to\Logs"        
+        $LogLocation = "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\Logs"        
 
         #Any ACL's that cannot be set on the home directory will have the associated username
         #stored in this array for processing in the 'End {}' section of this function.
@@ -68,6 +68,8 @@ Function Create-StudentObject {
         $NoOfACLsFixedOnSecondAttempt = 0
         $NoOfErrors = 0
         $GroupsCreated = 0
+        $ProcessingStartTime = get-date -Format "HH:mm:s"      
+
         
         Write-Log -Message "Starting Log processing" -LogDateTime
         write-log "     *************************************"         
@@ -457,6 +459,12 @@ Function Create-StudentObject {
                 #write-output "ADUSER OBJECT YEAR: $($aduser.PhysicalDeliveryOfficeName)"
                                
                 write-verbose ""
+
+                #l.
+                #Enable adaccount (It may be disabled, if already enabled it won't matter
+                Enable-ADAccount $ADUser.samaccountname
+
+
             } #end if         
             
             #10.
@@ -519,7 +527,7 @@ Function Create-StudentObject {
                 try {
                     Write-verbose "Setting ACL on directory..."
                     Write-log "Setting ACL on directory..."
-                    $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain wingtip -ea Stop -ev x
+                    $csvUser.username | Set-DirACL -DirectoryToModify $csvuser.HomeDirectory -ACLToAdd Modify -Domain chi -ea Stop -ev x
                     Write-verbose "ACL: Set."
                     Write-log "ACL: Set."
                 } catch {                    
@@ -633,7 +641,7 @@ Function Create-StudentObject {
                 try {
                     Write-verbose "Attempting to set ACL on directory for user: $user on $HomeDirectory"
                     Write-log "Attempting to set ACL on directory for user: $user on $HomeDirectory"
-                    $User | Set-DirACL -DirectoryToModify $HomeDirectory -ACLToAdd Modify -Domain wingtip -ea Stop -ev x
+                    $User | Set-DirACL -DirectoryToModify $HomeDirectory -ACLToAdd Modify -Domain chi -ea Stop -ev x
                     Write-verbose "ACL set successfully."
                     Write-log "ACL set successfully."
                     $NoOfACLsFixedOnSecondAttempt++
@@ -663,19 +671,67 @@ Function Create-StudentObject {
         }
         
         $StatsMessage += "Users Processed: $NoOfUsersProcessed`n"
-        $StatsMessage += "Number of new A.D Accounts created: $NoOfNewADAccounts`n"
-        $StatsMessage += "Number of existing A.D Accounts: $NoOfExistingAccounts`n"
-        $StatsMessage += "Number of missing DOB's fixed: $NoOfMissingDOBFixed`n"
-        $StatsMessage += "Number of new groups created: $GroupsCreated`n"
-        $StatsMessage += "Number of ACLS not set on first attempt: $NoOfACLsNotSetOnFirstAttempt`n"
-        $StatsMessage += "`nNumber of ACLS fixed on second attempt: $NoOfACLsFixedOnSecondAttempt`n"
+        $StatsMessage += "`n Number of new A.D Accounts created: $NoOfNewADAccounts"
+        $StatsMessage += "`n Number of existing A.D Accounts: $NoOfExistingAccounts"
+        $StatsMessage += "`n Number of missing DOB's fixed: $NoOfMissingDOBFixed"
+        $StatsMessage += "`n Number of new groups created: $GroupsCreated"
+        $StatsMessage += "`n ACL's not set on first attempt: $NoOfACLsNotSetOnFirstAttempt"      
+        $StatsMessage += "`n ACL's fixed on second attempt: $NoOfACLsFixedOnSecondAttempt"                
+        $statsmessage += "`n"
+        $statsmessage += "`n"        
+        $StatsMessage += "Processing started: $ProcessingStartTime"
+        $statsmessage += "`n"        
+        $StatsMessage += "Processing completed: " + (get-date -Format 'HH:mm:s')     
+        $statsmessage += "`n"
+        $timenow=get-date -format "HH:mm:s"
+        $diff =[datetime]$timenow - [datetime]$ProcessingStartTime
+        $StatsMessage += "Total time taken: $diff"
+
+
+<#
+
+        #********************* TESTING HTML *************
+                $props = [ordered]@{'Users Processed' = $NoOfUsersProcessed
+                            'New Accounts' = $NoOfNewADAccounts;
+                            'Existing Accounts' = $NoOfExistingAccounts;
+                            "DOB's Fixed" = $NoOfMissingDOBFixed;
+                            "Groups Created" = $GroupsCreated;
+                            "ACL's Missed" = $NoOfACLsNotSetOnFirstAttempt;
+                            "ACL's Fixed" = $NoOfACLsFixedOnSecondAttempt;
+                            "Start" = $ProcessingStartTime;
+                            "Finish" = (get-date -Format 'HH:mm:s') ;
+                            "Total Time" = $diff;                            
+                             }# end props
+    
+        $obj=New-Object -typename psobject -Property $props
+    
+       # $obj 
+
+        $a = "<style>"
+        $a = $a + "BODY{background-color:peachpuff;}"
+        $a = $a + "TABLE{border-width: 1px;border-style: solid;border-color: black;border-collapse: collapse}"
+        $a = $a + "TH{border-width: 1px;padding: 0.5rem;border-style: solid;border-color: black;background-color:thistle}"
+        $a = $a + "TD{border-width: 1px;padding: 0.5rem;border-style: solid;border-color: black;background-color:PaleGoldenrod;text-align: cente}"
+        $a = $a + "</style>"
+
+        if ($ErrorLogExists) {       
+            $obj | select "Users Processed","New Accounts","Existing Accounts","DOB's Fixed","Groups Created","ACL's Missed","ACL's Fixed","Start","Finish","Total Time" | ConvertTo-HTML -head $a -body "<H2>CreateU - Student: *** FAIL ***</H2>" | Out-File C:\ohtest\Test.htm
+        } else {
+            $obj | select "Users Processed","New Accounts","Existing Accounts","DOB's Fixed","Groups Created","ACL's Missed","ACL's Fixed","Start","Finish","Total Time" | ConvertTo-HTML -head $a -body "<H2>CreateU - Student: *** SUCCESS ***</H2>" | Out-File C:\ohtest\Test.htm
+        }
+
+        Invoke-Expression C:\ohtest\Test.htm
+
+#>
+
+        #********************************************
 
         if ($ErrorLogExists) {
             #Email any error logs
             $files = Get-ChildItem -Path $LogLocation -File | Where-Object {$_.Extension -eq ".err" -and $_.Name.StartsWith("NewStudentCreateU") -and $_.LastWriteTime -gt (Get-Date).AddHours(-1)}
 
             foreach ($File in $Files) {
-                Send-MailMessage -To you@wingtip.com -From me@wingtip.com -usessl -SmtpServer mail.wingtip.com -Subject "Student Create User: FAIL." -Body $StatsMessage -Attachments ($file.DirectoryName + "\$file")    
+                Send-MailMessage -To CSUAlerts@chichester.ac.uk -From CSUAlerts@chichester.ac.uk -usessl -SmtpServer Chichester-ac-uk.mail.protection.outlook.com -Subject "Student Create User: FAIL." -Body $StatsMessage -Attachments ($file.DirectoryName + "\$file")    
             }#end foreach
             Write-Log -Message $StatsMessage -LogExtension .err
         } else {
@@ -683,7 +739,7 @@ Function Create-StudentObject {
             $files = Get-ChildItem -Path $LogLocation -File | Where-Object {$_.Extension -eq ".log" -and $_.Name.StartsWith("NewStudentCreateU") -and $_.LastWriteTime -gt (Get-Date).AddHours(-1)}
 
             foreach ($File in $Files) {
-                Send-MailMessage -To you@wingtip.com -From me@wingtip.com -usessl -SmtpServer mail.wingtip.com -Subject "Student Create User: SUCCESS." -Body $StatsMessage -Attachments ($file.DirectoryName + "\$file")    
+                Send-MailMessage -To CSUAlerts@chichester.ac.uk -From CSUAlerts@chichester.ac.uk -usessl -SmtpServer Chichester-ac-uk.mail.protection.outlook.com -Subject "Student Create User: SUCCESS." -Body $StatsMessage -Attachments ($file.DirectoryName + "\$file")    
             }#end foreach
             Write-Log -Message $StatsMessage
         }
@@ -692,7 +748,7 @@ Function Create-StudentObject {
         $newfilename = ("output-" + ($date = Get-Date -format yyyy.MM.dd.HH.mm.ss) + ".csv")
         
         try {
-            Move-OHFiles -Source "\\server\path\to\output.csv" -Destination "\\server\path\to\Processed\$newfilename" -ea SilentlyContinue
+            Move-OHFiles -Source "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\output.csv" -Destination "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\Processed\$newfilename" -ea SilentlyContinue
         } catch {
             write-error "Unable to move output.csv to new directory"
             Write-Log "Unable to move output.csv to new directory" -LogExtension .err
@@ -707,7 +763,7 @@ Function Create-StudentObject {
 
 
 # --- Run the script...
-import-Csv "\\server\path\to\csv\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","AcademicYear","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject #-verbose
+import-Csv "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","AcademicYear","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject #-verbose
 
-#testing...
+testing...
 #import-Csv "c:\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","AcademicYear","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject -verbose
