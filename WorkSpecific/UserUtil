@@ -1808,7 +1808,7 @@ Catch
 
 #region Code added by OH 19 May 2015
 function Set-msexchHideFromAddressLists {
-#   Date:  19-May-2015
+#    Date: 19-May-2015
 #  Author: OH
 # Purpose: Writes true or false to the A.D attribute: msexchHideFromAddressLists 
     param (
@@ -1836,7 +1836,7 @@ function Set-msexchHideFromAddressLists {
 }#End Function Set-msexchHideFromAddressLists
 
 function Set-extensionAttribute10 {
-#   Date:  19-May-2015
+#    Date: 19-May-2015
 #  Author: OH
 # Purpose: Writes to: extensionAttribute10
     param (
