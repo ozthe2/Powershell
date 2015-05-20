@@ -1,0 +1,1904 @@
+[System.Reflection.Assembly]::LoadWithPartialName("System.Security.Principal.WindowsIdentity")
+[System.Reflection.Assembly]::LoadWithPartialName("System.Security.Principal.NTAccount")
+
+$studentadlocation = "OU=XXX,OU=XXX,OU=XXX,OU=XXX,DC=XXX,DC=XXX"
+$staffadlocation = "OU=XXX,OU=XXX,OU=XXX,OU=XXX,DC=XXX,DC=XXX"
+$logpath = "S:\Restricted\Logs\UserUtil"
+
+Function Resize-Window($x, $y)
+{
+  $pshost = get-host
+  $pswindow = $pshost.ui.rawui
+
+  $newsize = $pswindow.buffersize
+  $newsize.height = 3000
+  $newsize.width = $x
+  $pswindow.buffersize = $newsize
+
+  $newsize = $pswindow.windowsize
+  $newsize.height = $y
+  $newsize.width = $x
+  $pswindow.windowsize = $newsize
+}
+
+Function Write-Colour
+{
+  #Specify the colours usable and get the current foreground colour.
+  $colours = ("-Black","-Blue","-Cyan","-DarkBlue","-DarkCyan","-DarkGray","-DarkGreen","-DarkMagenta","-DarkRed","-DarkYellow","-Gray","-Green","-Magenta","-Red","-White","-Yellow")
+  $fg = (Get-Host).UI.RawUI.ForegroundColor
+  $colour = $fg
+  $nonewline = $false
+  $text = $null
+
+  #Parse each argument, if it's text, print it
+  #If it's a function argument, then do something special.
+  foreach($arg in $args)
+  {
+    if($arg -eq "-nonewline") 
+    {
+      $nonewline = $true
+    }
+    
+    #Set the colour back to the normal foreground colour.
+    elseif($arg -eq "-N")
+    {
+      if($text) 
+      {
+        Write-Host $text -foreground $colour -nonewline
+      }
+      
+      $colour = $fg
+      $text = $null
+    }
+    
+    #Set a colour
+    elseif($colours -contains $arg)
+    {
+      if($text)
+      {
+        Write-Host $text -foreground $colour -nonewline
+      }
+      
+      $colour = $arg.substring(1)
+      $text = $null
+    }
+    
+    #Chain together the arguments if they don't fit the conditions above.
+    #This means it should be the normal text you would expect to be printed.
+    else
+    {
+      $text += "$arg "
+    }
+  }
+  
+  #Write the actual text to the host,
+  #depending on whether -nonewline was specified.
+  if(!$nonewline)
+  {
+    Write-Host $text -foreground $colour
+  }
+  
+  elseif($nonewline)
+  {
+    Write-Host $text -foreground $colour -nonewline
+  }
+}
+
+#Gets a list of groups that the user is a member of from the current Windows identity token.
+#Param1: $domain - Boolean value. Return group names with domain or not.
+#        e.g. true = "BUILTIN\Authenticated Users", false = "Authenticated Users".
+Function Get-Membership($domain)
+{
+  $groups = @()
+
+  foreach($group in [System.Security.Principal.WindowsIdentity]::GetCurrent().Groups)
+  {
+    Try
+    {
+      $grp = $group.Translate([System.Security.Principal.NTAccount]).ToString()
+
+      if(($grp -like ("*\*")) -and (!$domain))
+      {
+        $groups += $grp.Substring((($grp.IndexOf("\")) + 1))
+      }
+
+      else
+      {
+        $groups += $grp
+      }
+    }
+
+    Catch
+    {
+
+    }
+  }
+
+  return $groups
+}
+
+Function Get-Rights()
+{
+  $rights = @()
+
+  switch(Get-Membership)
+  {
+    {($_ -contains "Role-Change Account Expires Date (Staff-Current OU)")} { $rights += "StaExp" }
+    {($_ -contains "Role-Change Account Expires Date (Students-Current OU)")} { $rights += "StuExp" }
+    {($_ -contains "Role-Enable and Disable User Accounts (Staff-Current OU)")} { $rights += "StaEna" }
+    {($_ -contains "Role-Enable and Disable User Accounts (Students-Current OU)")} { $rights += "StuEna" }
+    {($_ -contains "Role-Manage Group Internet-Disabled(StaffManaged)")} { $rights += "StuNet" }
+    {($_ -contains "Role-Reset Passwords (Staff-Current OU)")} { $rights += "StaPwd" }
+    {($_ -contains "Role-Reset Passwords (Students-Current OU)")} { $rights += "StuPwd" }
+    {($_ -contains "CSU-All Technical Support")}
+    {
+      $rights += "StuPwd"
+      $rights += "StuExp"
+      $rights += "StuEna"
+      $rights += "StuNet"
+      $rights += "StuGrp"
+      $rights += "StuRen"
+	  
+      $rights += "StaPwd"
+      $rights += "StaExp"
+      $rights += "StaEna"
+      $rights += "StaNet"
+      $rights += "StaGrp"
+      $rights += "StaRen"
+
+      $rights += "All"
+    }
+  }
+
+  return $rights
+}
+
+#Write out the help/guide for the menu.
+Function Write-Help
+{
+  Write-Colour -Yellow "CSU User Administration Utility`n"
+}
+
+Function Get-ADUserExtended($search)
+{
+  Try
+  {
+    if($search -match "\b[0-9]{5}\b")
+    {
+      $user = Get-ADUser -Filter {EmployeeNumber -eq $search} -SearchBase $staffadlocation -Properties accountExpires, homeDirectory, memberOf, pwdLastSet, employeeNumber, employeeType,extensionAttribute10  -ErrorAction Stop
+    }
+
+    elseif($search -match "\b[0-9]{8}\b")
+    {
+      $user = Get-ADUser -Filter {EmployeeNumber -eq $search} -SearchBase $studentadlocation -Properties accountExpires, homeDirectory, memberOf, pwdLastSet, employeeNumber, employeeType,extensionAttribute10 -ErrorAction Stop
+    }
+
+    else
+    {
+      $user = Get-ADUser $search -Properties accountExpires, homeDirectory, memberOf, pwdLastSet, employeeNumber, employeeType, mail, whenCreated,extensionAttribute10 -ErrorAction Stop
+    }
+  }
+  
+  Catch
+  {
+    Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+    Read-Host
+    return $null
+  }
+  
+  return $user
+}
+
+#Displays ADUser details
+Function Display-ADUser($user)
+{
+  Write-Host "________________________________________________________`n"
+
+  #Display Username
+  Write-Host ("Username          : " + ($user.name))
+
+  #Display Name
+  if($user.givenName -eq $null)
+  {
+    Write-Colour "Full Name         :" -Red "MISSING VALUE!"
+  }
+  else
+  {
+    Write-Host ("Full Name         : " + ($user.givenName) + " " + $user.surname)
+  }
+  
+  #Display primary email address
+  if($user.givenName -eq $null)
+  {
+    Write-Colour "Email address     :" -Yellow "Not Enabled"
+  }
+  else
+  {
+    Write-Host ("Email address     : " + ($user.mail))
+  }
+  
+  #Display employeeType
+  if($user.employeeType -eq $null)
+  {
+    Write-Colour "User Type         :" -Red "MISSING VALUE!"
+  }
+  else
+  {
+    Write-Host ("User Type         : " + ($user.employeeType))
+  }
+  
+  #Display employee/student number.
+  if(($user.employeeNumber -match "\b[0-9]{5}\b") -and ($user.employeeType -eq "staff"))
+  {
+    Write-Host ("Staff Number      : " + $user.employeeNumber)
+  }
+  
+  elseif(($user.employeeNumber -match "\b[0-9]{8}\b") -and ($user.employeeType -eq "student"))
+  {
+    Write-Host ("Student Number    : " + $user.employeeNumber)
+  }
+
+  elseif($user.employeeNumber -eq $null)
+  {
+    Write-Colour -Red "Warning: Missing HR/Student Number"
+  }
+  
+  else
+  {
+    Write-Colour -Red "Warning: Incorrect student username or number"
+  }
+
+  Write-Host
+
+  #Display account status.
+  if(!$user.enabled)
+  {
+    Write-Colour "Account Status    :" -Red "Disabled"
+  }
+
+  else
+  {
+    Write-Colour "Account Status    :" -Green "Enabled"
+  }
+
+  #Display account expiry information.
+  if(($user.accountExpires -eq 9223372036854775807) -or ($user.accountExpires -eq 0) -and ($user.employeeType -eq "staff"))
+  {
+    Write-Colour "Account Expires   :"-Green "Never"
+  }
+  
+  elseif(($user.accountExpires -eq 9223372036854775807) -or ($user.accountExpires -eq 0) -and ($user.employeeType -eq "student"))
+  {
+    Write-Colour "Account Expires   :"-Red "Never"
+  }
+  
+  else
+  {
+    [DateTime]$accexp = $user.accountExpires
+    $accexp = $accexp.AddYears(1600)
+
+    if($accexp -lt (Get-Date))
+    {
+      Write-Colour "Account Expires   :" -Red $accexp.ToShortDateString()
+    }
+
+    else
+    {
+      Write-Colour "Account Expires   :" -Green $accexp.ToShortDateString()
+    }
+  }
+  
+  #Check internet groups status
+  if((Get-ADUserGroups($user)) -contains "Internet-Disabled(StaffManaged)")
+  {
+    Write-Colour "Internet Status   :" -Red "Disabled"
+  }
+
+  elseif((Get-ADUserGroups($user)) -contains "Internet-Disabled")
+  {
+    Write-Colour "Internet Status   :" -Red "Disabled" -N "Contact CSU to enable."
+  }
+
+  else
+  {
+    Write-Colour "Internet Status   :" -Green "Enabled"
+  }
+
+  #OH Added code
+  #
+  if ($user.enabled -eq $false -and ([string]$user.extensionattribute10).Length -gt 0) {
+    Write-Colour "Last Manual Change:" $user.extensionAttribute10
+  }#end If
+
+  #OH Code end
+
+  Write-Host
+
+  #Display user created date
+  Write-Host ("User Created On   : " + '{0:dd/MM/yyyy}' -f $user.whenCreated)
+  
+  #Display password last set info and projected expiry (90 days).
+  if($user.pwdLastSet -ne $null)
+  {
+    [DateTime]$lastset = $user.pwdLastSet
+    $lastset = ($lastset.AddYears(1600)).ToLocalTime()
+
+    if((((Get-Date).ToLocalTime()).ToShortDateString()) -eq ($lastset.ToShortDateString()))
+    {
+      Write-Colour "Password Last Set :" -Yellow "Today" -N ("at " + $lastset.ToShortTimeString())
+    }
+    
+    else
+    {
+      Write-Host ("Password Last Set : " + $lastset.ToShortDateString())
+    }
+
+    Write-Host ("Password Expires  : " + $lastset.AddDays(90).ToShortDateString() + " " + $lastset.AddDays(90).ToShortTimeString() + " (Projected)")
+  }
+  
+#  Home directory and sorted list of groups.
+#  if(Test-Path ($user.homeDirectory))
+#  {
+#    Write-Colour "`nHome Directory   :" -Green $user.homeDirectory
+#  }
+#
+#  else
+#  {
+#    Write-Colour "`nHome Directory   :" -Red $user.homeDirectory
+#  }
+  Write-Colour "`nHome Directory    :" -White $user.homeDirectory	
+	
+  Write-Host ("`nPrimary Groups    : (includes user type & team groups)")
+
+  foreach($grp in $user.memberOf | Sort-Object)
+  {
+    $data = $grp.split(",")
+
+    foreach($d in $data)
+    {
+      if($d.Contains("CN="))
+      {
+        switch($d)
+        {
+          {($d.StartsWith("CN=Account-"))}{Write-Host ("                    " + $d.SubString(3))}
+          {($d.StartsWith("CN=Internet-"))}{Write-Host ("                    " + $d.SubString(3))}
+          {($d.StartsWith("CN=Directorate-"))}{Write-Host ("                    " + $d.SubString(3))}
+          {($d.StartsWith("CN=Dept-"))}{Write-Host ("                    " + $d.SubString(3))}
+          {($d.StartsWith("CN=Team-"))}{Write-Host ("                    " + $d.SubString(3))}
+          {($d.StartsWith("CN=Site-"))}{Write-Host ("                    " + $d.SubString(3))}
+          {($d.StartsWith("CN=CourseCode-"))}{Write-Host ("                    " + $d.SubString(3))}
+        }
+      }
+    }
+  }
+
+  #Write-Host "`nRecent actions (last 2 shown):"
+  
+  #foreach($action in ((Get-Log $user) | Select-Object -Last 2))
+  #{
+  #  Write-Colour -DarkCyan ((Get-Date $action.Date -Format "dd/MM/yyyy HH:mm:ss") + " | " + ($action.Type) + " | " + ($action.Description))
+  #}  
+   
+}
+
+Function List-ADGroups($filter)
+{
+  $filter = ($filter + "*")
+  $groups = Get-ADGroup -Filter {CN -like $filter} -ErrorAction Stop
+  Get-ADGroup -Filter {CN -like "$filter*"} -ErrorAction Stop
+  $i = 0
+
+  foreach($grp in $groups)
+  {
+    $i++
+    Write-Host $grp.Name
+
+    if(($i %= 15) -eq 0)
+    {
+      Read-Host "`nPress enter for more"
+    }
+  }
+
+  Read-Host "`nEnd of List. Press enter to continue"
+}
+
+Function Get-ADUserGroups($user)
+{
+  $groups = @()
+
+  foreach($grp in $user.memberOf | Sort-Object)
+  {
+    $data = $grp.split(",")
+    
+    foreach($d in $data)
+    {
+      if($d.Contains("CN="))
+      {
+        $groups += $d.SubString(3)
+      }
+    }
+  }
+  
+  return $groups
+}
+
+Function Display-ADUserGroups($user)
+{
+  Write-Colour ("User  : " + ($user.givenName) + " " + ($user.surname)) -Green ("(" + $user.name + ")`n")
+  Write-Host "Groups:"
+  $i = 0
+  
+  foreach($group in Get-ADUserGroups($user))
+  {
+    $i++
+    Write-Colour -Yellow ($i.ToString() + ")") -N $group
+  }
+}
+
+Function Change-Password($user)
+{
+  Clear
+
+  switch($user.employeetype)
+  {
+    "staff"
+    {
+      if((Get-Rights) -notcontains "StaPwd")
+      {
+        Write-Colour -Red "You do not have permissions to change staff passwords. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+
+    "student" 
+    {
+      if((Get-Rights) -notcontains "StuPwd")
+      {
+        Write-Colour -Red "You do not have permissions to change student passwords. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+  }
+
+  Write-Colour -Green "Change password"  ("for " + ($user.givenName) + " " + ($user.surname)) -Green ("(" + $user.name + ")`n")
+  $pw = (Read-Host -Prompt "Provide New Password" -AsSecureString)
+
+  Write-Host "Enter a reason for this action, or type your own:"
+  Write-Host "`n"
+  Write-Colour -Yellow "1)" -N "Forgotten Password"
+  Write-Host "Enter option" -nonewline
+  $description = Read-Menu
+
+  switch($description)
+  {
+    1 { $description = "Forgotten Password" 
+        $code = "FPW" }
+    default { $code= "OTH"}
+  }
+
+  $type = "Password-Set"
+  $value = "New password Set"
+
+  Try
+  {
+    Set-ADAccountPassword -Identity $user.name -NewPassword $pw -Reset -ErrorAction Stop
+    #Unlock-ADAccount -Identity $user -Confirm:$false -ErrorAction Stop
+    #Write-Log $user $type $code $value $description
+    Write-Colour -Green "Password set successfully." -Yellow "`n`nPress enter to continue."
+  }
+  
+  Catch
+  {
+    Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+  }
+  
+  Read-Host
+  Show-UserMenu $user
+}
+
+Function Generate-Password($user)
+{
+  Clear
+  Write-Help
+  
+  switch($user.employeetype)
+  {
+    "staff"
+    {
+      if((Get-Rights) -notcontains "StaPwd")
+      {
+        Write-Colour -Red "You do not have permissions to change staff passwords. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+
+    "student" 
+    {
+      if((Get-Rights) -notcontains "StuPwd")
+      {
+        Write-Colour -Red "You do not have permissions to change student passwords. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+  }
+  
+  Write-Colour "Generate password" ("for " + ($user.givenName) + " " + ($user.surname)) -Green ("(" + $user.name + ")")
+  $rand = New-Object system.random
+  $pw = $rand.next(10000000,100000000)
+  Write-Colour "Press" -Green "Y" -N "to accept, or" -Yellow "N" -N "to generate a new password.`n"
+  Write-Colour "Set password to:" -Yellow $pw -N "(Y/N)" -nonewline
+  $result = Read-Menu
+
+  switch($result)
+  {
+    "y" 
+    {
+      Write-Host "Enter a reason for this action, or type your own:"
+      Write-Host "`n"
+      Write-Colour -Yellow "1)" -N "Forgotten Password"
+      Write-Host "Enter option" -nonewline
+      $description = Read-Menu
+
+      switch($description)
+      {
+        1 { $description = "Forgotten Password" 
+            $code = "FPW" }
+        default { $code= "OTH"}
+      }
+
+      $type = "Password-Generated"
+      $value = "New password generated"
+
+      Try
+      {
+        Set-ADAccountPassword -Identity $user.name -NewPassword (ConvertTo-SecureString -AsPlainText $pw -Force) -Reset -ErrorAction Stop
+        #Unlock-ADAccount -Identity $user -Confirm:$false -ErrorAction Stop
+        #Write-Log $user $type $code $value $description
+        Write-Colour -Green "Password set successfully." -Yellow "`n`nPress enter to continue."
+      }
+      
+      Catch
+      {
+        Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+      }
+      
+      Read-Host
+    }
+    
+    "n" { Generate-Password $user }
+    default { Show-UserMenu $user }
+  }
+  
+  Show-UserMenu $user
+}
+
+Function Rename-User($user)
+{
+  Clear
+  Write-Help
+
+  switch($user.employeetype)
+  {
+    "staff"
+    {
+      if((Get-Rights) -notcontains "StaRen")
+      {
+        Write-Colour -Red "You do not have permissions to rename staff. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+
+    "student" 
+    {
+      if((Get-Rights) -notcontains "StuRen")
+      {
+        Write-Colour -Red "You do not have permissions to rename students. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+  }
+
+  Write-Colour -Green "Rename user" -N (($user.givenName) + " " + ($user.surname) + " (" + $user.name + ")`n")
+  Write-Colour -Yellow "1)" -N "Change Surname"
+  Write-Colour -Yellow "2)" -N "Change Username and Home Directory name"
+  Write-Colour -Yellow "3)" -N "Change Home Directory name only"
+  
+  Write-Host "Enter option" -nonewline
+  $result = Read-Menu
+
+  switch($result)
+  {
+    1 { Change-Surname $user }
+    2 { Change-Username $user }
+    3 { Change-HomeDirName $user }
+    default { Show-UserMenu $user }
+  }
+}
+
+Function Change-Surname($user)
+{
+  Clear
+  Write-Help
+  Write-Colour -Green "Change Surname" -N ("for " + ($user.givenName) + " " + ($user.surname) + " (" + $user.name + ")")
+  Write-Host "Enter new surname" -nonewline
+  $newsurname = Read-Menu
+
+  if($newsurname -eq "")
+  {
+    Change-Surname $user
+  }
+
+  Write-Colour "`nAre you sure?" -Yellow "(Y/N)" -nonewline
+  $result = Read-Menu
+
+  switch($result)
+  {
+    "y" 
+    {
+      Write-Host "Enter a reason for this action:"
+      $description = Read-Menu
+
+      $code = "OTH"
+      $type = "Change-Surname"
+      $value = ("Changed user surname from " + $user.surname + " to " + $newsurname)
+
+      Try
+      {
+        Write-Colour "`nSetting user surname to" -Green $newsurname
+        Set-ADUser -Identity $user.name -surname $newsurname -ErrorAction Stop
+        #Write-Log $user $type $code $value $description
+        Write-Colour -Green "New surname set successfully." -Yellow "`n`nPress enter to continue."
+      }
+      
+      Catch
+      {
+        Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+      }
+      
+      Read-Host
+    }
+    
+    "n" { Rename-User $user }
+    default { Rename-User $user }
+  }
+  
+  Show-UserMenu $user
+}
+
+Function Change-Username($user)
+{
+  Clear
+  Write-Help
+  Write-Colour -Green "Change Username" -N ("for " + ($user.givenName) + " " + ($user.surname) + " (" + $user.name + ")")
+  Write-Host "Enter new username" -nonewline
+  $newuser = Read-Menu
+
+  if($newuser -eq "")
+  {
+    Change-Username $user
+  }
+
+  Write-Colour "`nAre you sure?" -Yellow "(Y/N)" -nonewline
+  $result = Read-Menu
+
+  switch($result)
+  {
+    "y" 
+    {
+      Write-Host "Enter a reason for this action:"
+      $description = Read-Menu
+
+      $code = "OTH"
+      $type = "Change-Username"
+      $value = ("Changed user name from " + $user.name + " to " + $newuser)
+
+      Try
+      {
+        Write-Colour "`nSetting username to" -Green $newuser
+        Rename-ADObject -Identity ($user.objectGUID) -NewName $newuser -ErrorAction Stop
+        Set-ADUser -Identity $user.objectGUID -samAccountName $newuser -ErrorAction Stop
+        Write-Colour -Green "Username Set..." -N "`nChanging homedirectory name..."
+        $newhome = ((Split-Path($user.homeDirectory)) + "\" + $newuser)
+        Set-ADUser -Identity $user.objectGUID -homeDirectory $newhome -ErrorAction Stop
+        Write-Colour -Green "Homedirectory set in AD." -N "Renaming folder..."
+        Rename-Item ($user.homeDirectory) $newuser -ErrorAction Stop
+        #Write-Log $user $type $code $value $description
+        Write-Colour -Green "New username and homedir set successfully." -Yellow "`n`nPress enter to continue."
+      }
+      
+      Catch
+      {
+        Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+      }
+      
+      Read-Host
+    }
+    
+    "n" { Rename-User $user }
+    default { Rename-User $user }
+  }
+  
+  Show-UserMenu $user
+}
+
+Function Change-HomeDirName($user)
+{
+  Clear
+  Write-Help
+  Write-Colour -Green "Change Homedirectory name" -N ("for " + ($user.givenName) + " " + ($user.surname) + " (" + $user.name + ")")
+  Write-Host ("Enter new homedirectory name (The folder will be placed in " + (Split-Path($user.homeDirectory)) + ")") -nonewline
+  $newhome = Read-Menu
+
+  if($newhome -eq "")
+  {
+    Change-HomeDirName $user
+  }
+
+  Write-Colour "`nAre you sure?" -Yellow "(Y/N)" -nonewline
+  $result = Read-Menu
+
+  switch($result)
+  {
+    "y" 
+    {
+      Write-Host "Enter a reason for this action:"
+      $description = Read-Menu
+
+      $code = "OTH"
+      $type = "Rename-HomeDir"
+      $value = ("Changed homedir name from " + $user.homeDirectory + " to " + ((Split-Path($user.homeDirectory)) + "\" + $newhome))
+
+      Try
+      {
+        $fullhome = ((Split-Path($user.homeDirectory)) + "\" + $newhome)
+        Write-Colour "`nSetting homedirectory name to" -Green $fullhome
+        Set-ADUser -Identity $user.objectGUID -homeDirectory $fullhome -ErrorAction Stop
+        Write-Colour -Green "Homedirectory set in AD." -N "Renaming folder..."
+        Rename-Item ($user.homeDirectory) $newhome -ErrorAction Stop
+        #Write-Log $user $type $code $value $description
+        Write-Colour -Green "New homedirectory set successfully." -Yellow "`n`nPress enter to continue."
+      }
+      
+      Catch
+      {
+        Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+      }
+      
+      Read-Host
+    }
+    
+    "n" { Rename-User $user }
+    default { Rename-User $user }
+  }
+  
+  Show-UserMenu $user
+}
+
+Function Add-UserGroup($user)
+{
+  Clear
+  Write-Help
+
+  switch($user.employeetype)
+  {
+    "staff"
+    {
+      if((Get-Rights) -notcontains "StaGrp")
+      {
+        Write-Colour -Red "You do not have permissions to change staff groups. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+
+    "student" 
+    {
+      if((Get-Rights) -notcontains "StuGrp")
+      {
+        Write-Colour -Red "You do not have permissions to change student groups. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+  }
+
+  if($user -ne $null)
+  {
+    $user = Get-ADUserExtended $user.objectGUID
+    Display-ADUserGroups $user
+  }
+
+  else
+  {
+    Show-UserMenu
+  }
+
+  Write-Colour -Yellow "`nType the name of the group you would like to add the user to.`n"
+  Write-Colour "Press" -Yellow "=" -N "to list groups. (You can use" -Yellow "=a" -N "to list groups starting with 'a')`n"
+  Write-Host "Enter option" -nonewline
+  $result = Read-Menu
+  Write-Host
+  
+  if($result.StartsWith("="))
+  {
+    List-ADGroups $result.SubString(1)
+    Add-UserGroup $user
+  }
+
+  elseif($result)
+  {
+    Write-Host "Enter a reason for this action:"
+    $description = Read-Menu
+
+    $code = "OTH"
+    $type = "Group-Add"
+    $value = ("Added to group " + $result)
+    
+    if((Get-ADUserGroups($user)) -notcontains $result)
+    {
+      Try
+      {
+        Add-ADGroupMember -Identity $result -Members $user.objectGUID -ErrorAction Stop
+       # Write-Log $user $type $code $value $description
+      }
+
+      Catch
+      {
+        Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to try again."
+        Read-Host
+        Add-UserGroup $user
+      }
+    }
+
+    else
+    {
+      Write-Colour "Error:" -Red "The user is already a member of this group." -Yellow "`n`nPress enter to try again."
+      Read-Host
+    }
+  }
+
+  Add-UserGroup $user
+}
+
+Function Remove-UserGroup($user)
+{
+  Clear
+  Write-Help
+
+  switch($user.employeetype)
+  {
+    "staff"
+    {
+      if((Get-Rights) -notcontains "StaGrp")
+      {
+        Write-Colour -Red "You do not have permissions to change staff groups. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+
+    "student" 
+    {
+      if((Get-Rights) -notcontains "StuGrp")
+      {
+        Write-Colour -Red "You do not have permissions to change student groups. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+  }
+
+  if($user -ne $null)
+  {
+    $user = Get-ADUserExtended $user.objectGUID
+    Display-ADUserGroups $user
+  }
+  
+  else
+  {
+    Show-UserMenu
+  }
+
+  Write-Colour -Yellow "`nEnter the number of a group to remove the user from it.`n"
+  Write-Host "Enter option" -nonewline
+  $result = Read-Menu
+  
+  Write-Host "Enter a reason for this action:"
+  $description = Read-Menu
+
+  $code = "OTH"
+  $type = "Group-Removal"
+  $value = ("Removed from group " + (Get-ADUserGroups($user))[($result - 1)])
+
+  Try
+  {
+    Remove-ADGroupMember -Identity (Get-ADUserGroups($user))[($result - 1)] -Member $user.objectGUID -Confirm:$false -ErrorAction Stop
+    #Write-Log $user $type $code $value $description
+  }
+
+  Catch
+  {
+    Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to try again."
+    Read-Host
+    Remove-UserGroup $user
+  }
+
+  Remove-UserGroup $user
+}
+
+Function Toggle-Internet($user)
+{
+  Clear
+  Write-Help
+
+  switch($user.employeetype)
+  {
+    "staff"
+    {
+      if((Get-Rights) -notcontains "StaNet")
+      {
+        Write-Colour -Red "You do not have permissions to change staff internet state. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+
+    "student"
+    {
+      if((Get-Rights) -notcontains "StuNet")
+      {
+        Write-Colour -Red "You do not have permissions to change student internet state. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+
+      else
+      {
+        Write-Colour -Red "IMPORTANT:" -N "Use this option to disable an account due to minor displinary,"
+        Write-Host "minor non-payment of fees or unauthorised website access."
+      }
+    }
+  }
+
+  if((Get-ADUserGroups $user) -contains "Internet-Disabled(StaffManaged)" -and (Get-ADUserGroups $user) -notcontains "Internet-Disabled" -and (Get-Rights) -notcontains "All")
+  {
+    Write-Colour "User is in an Internet disabled group." -Green "Enable" -N "? (Y/N)" -nonewline
+    $result = Read-Menu
+      
+    switch($result)
+    {
+      "y" 
+      {
+        Write-Host "Enter a reason for this action, or type your own:"
+        Write-Host "`n"
+        Write-Colour -Yellow "1)" -N "Disciplinary"
+        Write-Colour -Yellow "2)" -N "Misuse of Account"
+        Write-Colour -Yellow "3)" -N "Misuse of Internet"
+        Write-Colour -Yellow "4)" -N "Non-Payment of Course Fees"
+        Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees"
+        Write-Host "Enter option" -nonewline
+        $description = Read-Menu
+
+        switch($description)
+        {
+          1 { $description = "Disciplinary" 
+              $code = "DIP" }
+          2 { $description = "Misuse of Account" 
+              $code = "MAC" }
+          3 { $description = "Misuse of Internet"
+              $code = "MIN" }
+          4 { $description = "Non-Payment of Course Fees"
+              $code = "NPC" }
+          5 { $description = "Non-Payment of Other Fees"
+              $code = "NPO" }
+          default { $code= "OTH"}
+        }
+
+        $type = "Internet-Enabled"
+        $value = "Remove from Internet-Disabled group"
+
+        Try
+        {
+          Remove-ADGroupMember -Identity "Internet-Disabled(StaffManaged)" -Member $user.objectGUID -Confirm:$false -ErrorAction Stop
+          #Write-Log $user $type $code $value $description
+        }
+     
+        Catch
+        {
+          Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+        }
+      }
+   
+      "n" { Show-UserMenu $user }
+      default { Toggle-Internet $user }
+    }
+  }
+
+  elseif((Get-ADUserGroups $user) -notcontains "Internet-Disabled" -and (Get-Rights) -notcontains "All")
+  {
+    Write-Colour "User is Internet enabled." -Yellow "Disable" -N "? (Y/N)" -nonewline
+    $result = Read-Menu
+      
+    switch($result)
+    {
+      "y" 
+      {
+        Write-Host "Enter a reason for this action, or type your own:"
+        Write-Host "`n"
+        Write-Colour -Yellow "1)" -N "Disciplinary"
+        Write-Colour -Yellow "2)" -N "Misuse of Account"
+        Write-Colour -Yellow "3)" -N "Misuse of Internet"
+        Write-Colour -Yellow "4)" -N "Non-Payment of Course Fees"
+        Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees"
+        Write-Host "Enter option" -nonewline
+        $description = Read-Menu
+
+        switch($description)
+        {
+          1 { $description = "Disciplinary" 
+              $code = "DIP" }
+          2 { $description = "Misuse of Account" 
+              $code = "MAC" }
+          3 { $description = "Misuse of Internet"
+              $code = "MIN" }
+          4 { $description = "Non-Payment of Course Fees"
+              $code = "NPC" }
+          5 { $description = "Non-Payment of Other Fees"
+              $code = "NPO" }
+          default { $code= "OTH"}
+        }
+
+        $type = "Internet-Disabled"
+        $value = "Add to Internet-Disabled group"
+
+        Try
+        {
+          Add-ADGroupMember -Identity "Internet-Disabled(StaffManaged)" -Members $user.objectGUID -ErrorAction Stop
+         # Write-Log $user $type $code $value $description
+        }
+     
+        Catch
+        {
+          Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+        }
+      }
+   
+      "n" { Show-UserMenu $user }
+      default { Toggle-Internet $user }
+    }
+  }
+
+  elseif((Get-Rights) -contains "All" -and (Get-ADUserGroups $user) -contains "Internet-Disabled")
+  {
+    Write-Colour "User is in an Internet disabled group." -Green "Enable" -N "? (Y/N)" -nonewline
+    $result = Read-Menu
+      
+    switch($result)
+    {
+      "y" 
+      {
+        Write-Host "Enter a reason for this action, or type your own:"
+        Write-Host "`n"
+        Write-Colour -Yellow "1)" -N "Disciplinary"
+        Write-Colour -Yellow "2)" -N "Misuse of Account"
+        Write-Colour -Yellow "3)" -N "Misuse of Internet"
+        Write-Colour -Yellow "4)" -N "Non-Payment of Course Fees"
+        Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees"
+        Write-Host "Enter option" -nonewline
+        $description = Read-Menu
+
+        switch($description)
+        {
+          1 { $description = "Disciplinary" 
+              $code = "DIP" }
+          2 { $description = "Misuse of Account" 
+              $code = "MAC" }
+          3 { $description = "Misuse of Internet"
+              $code = "MIN" }
+          4 { $description = "Non-Payment of Course Fees"
+              $code = "NPC" }
+          5 { $description = "Non-Payment of Other Fees"
+              $code = "NPO" }
+          default { $code= "OTH"}
+        }
+
+        $type = "Internet-Enabled"
+        $value = "Add to Internet-Enabled"
+
+        Try
+        {
+          Remove-ADGroupMember -Identity "Internet-Disabled" -Member $user.objectGUID -Confirm:$false -ErrorAction Stop
+
+          if((Get-ADUserGroups $user) -contains "Internet-Disabled(StaffManaged)")
+          {
+            Remove-ADGroupMember -Identity "Internet-Disabled(StaffManaged)" -Member $user.objectGUID -Confirm:$false -ErrorAction Stop
+          }
+
+          #Write-Log $user $type $code $value $description
+        }
+     
+        Catch
+        {
+          Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+        }
+      }
+   
+      "n" { Show-UserMenu $user }
+      default { Toggle-Internet $user }
+    }
+  }
+
+  elseif((Get-Rights) -contains "All" -and (Get-ADUserGroups $user) -notcontains "Internet-Disabled")
+  {
+    Write-Colour "User is Internet enabled." -Yellow "Disable" -N "? (Y/N)" -nonewline
+    $result = Read-Menu
+      
+    switch($result)
+    {
+      "y" 
+      {
+        Write-Host "Enter a reason for this action, or type your own:"
+        Write-Host "`n"
+        Write-Colour -Yellow "1)" -N "Disciplinary"
+        Write-Colour -Yellow "2)" -N "Misuse of Account"
+        Write-Colour -Yellow "3)" -N "Misuse of Internet"
+        Write-Colour -Yellow "4)" -N "Non-Payment of Course Fees"
+        Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees"
+        Write-Host "Enter option" -nonewline
+        $description = Read-Menu
+
+        switch($description)
+        {
+          1 { $description = "Disciplinary" 
+              $code = "DIP" }
+          2 { $description = "Misuse of Account" 
+              $code = "MAC" }
+          3 { $description = "Misuse of Internet"
+              $code = "MIN" }
+          4 { $description = "Non-Payment of Course Fees"
+              $code = "NPC" }
+          5 { $description = "Non-Payment of Other Fees"
+              $code = "NPO" }
+          default { $code= "OTH"}
+        }
+
+        $type = "Internet-Disabled"
+        $value = "Add to Internet-Disabled"
+
+        Try
+        {          
+          Add-ADGroupMember -Identity "Internet-Disabled" -Members $user.objectGUID -ErrorAction Stop
+          
+          if((Get-ADUserGroups $user) -contains "Internet-Disabled(StaffManaged)")
+          {
+            Remove-ADGroupMember -Identity "Internet-Disabled(StaffManaged)" -Member $user.objectGUID -Confirm:$false -ErrorAction Stop
+          }
+
+         # Write-Log $user $type $code $value $description
+        }
+     
+        Catch
+        {
+          Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+        }
+      }
+   
+      "n" { Show-UserMenu $user }
+      default { Toggle-Internet $user }
+    }
+  }
+
+  Show-UserMenu $user
+}
+
+Function Toggle-User($user)
+{
+  Clear
+  Write-Help
+
+  switch($user.employeetype)
+  {
+    "staff"
+    {
+      if((Get-Rights) -notcontains "StaEna")
+      {
+        Write-Colour -Red "You do not have permissions to enable or disable staff. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+
+      else
+      {
+        Write-Colour -Red "IMPORTANT:" -N "Use this option to disable an account for a disciplinary."
+        Write-Host "You should also use this option in the event that the account must be retained"
+        Write-Host "after the account expiry date has passed."
+      }
+    }
+
+    "student" 
+    {
+      if((Get-Rights) -notcontains "StuEna")
+      {
+        Write-Colour -Red "You do not have permissions to enable or disable students. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+
+      else
+      {
+        Write-Colour -Red "IMPORTANT:" -N "Use this option to disable an account due to major disciplinary"
+        Write-Host "or non-payment of course fees."
+        Write-Host "You should also use this option in the event that the account must be retained"
+        Write-Host "after the account expiry date has passed."
+      }
+    }
+  }
+
+  if(!$user.enabled)
+  {
+    Write-Colour "`n`nUser is disabled" -Green "Enable" -N "? (Y/N)" -nonewline
+    $result = Read-Menu
+      
+    switch($result)
+    {
+      "y" 
+      {
+        Write-Host "Enter a reason for this action, or type your own:"
+        Write-Host "`n"
+        Write-Colour -Yellow "1)" -N "Disciplinary"
+        Write-Colour -Yellow "2)" -N "Misuse of Account"
+        Write-Colour -Yellow "3)" -N "Misuse of Internet"
+        Write-Colour -Yellow "4)" -N "Non-Payment of Course Fees"
+        Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees"
+        Write-Host "Enter option" -nonewline
+        $description = Read-Menu
+
+        switch($description)
+        {
+          1 { $description = "Disciplinary" 
+              $code = "DIP" }
+          2 { $description = "Misuse of Account" 
+              $code = "MAC" }
+          3 { $description = "Misuse of Internet"
+              $code = "MIN" }
+          4 { $description = "Non-Payment of Course Fees"
+              $code = "NPC" }
+          5 { $description = "Non-Payment of Other Fees"
+              $code = "NPO" }
+          default { $code= "OTH"}
+        }       
+
+        $type = "Enable-User"
+        $value = "User Enabled"
+
+        Try
+        {
+          Enable-ADAccount $user -Confirm:$false -ErrorAction Stop
+          #Write-Log $user $type $code $value $description
+          Write-Colour -Green "User enabled." -Yellow "`n`nPress enter to continue."
+          #OH Code: ensure user is not hidden from exchange address book
+          Set-msexchHideFromAddressLists -User $user -Hide No
+        }
+     
+        Catch
+        {
+          Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+        }
+      }
+   
+      "n" { Show-UserMenu $user }
+      default { Toggle-User $user }
+    }
+  }
+
+  else
+  {
+    Write-Colour "`n`nUser is enabled" -Yellow "Disable" -N "? (Y/N)" -nonewline
+    $result = Read-Menu
+      
+    switch($result)
+    {
+      "y" 
+      {
+        Write-Host "Enter a reason for this action, or type your own:"
+        Write-Host "`n"
+        Write-Colour -Yellow "1)" -N "Disciplinary"
+        Write-Colour -Yellow "2)" -N "Misuse of Account"
+        Write-Colour -Yellow "3)" -N "Misuse of Internet"
+        Write-Colour -Yellow "4)" -N "Non-Payment of Course Fees"
+        Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees"
+        Write-Host "Enter option" -nonewline
+        $description = Read-Menu
+
+        switch($description)
+        {
+          1 { $description = "Disciplinary" 
+              $code = "DIP" }
+          2 { $description = "Misuse of Account" 
+              $code = "MAC" }
+          3 { $description = "Misuse of Internet"
+              $code = "MIN" }
+          4 { $description = "Non-Payment of Course Fees"
+              $code = "NPC" }
+          5 { $description = "Non-Payment of Other Fees"
+              $code = "NPO" }
+          default { $code= "OTH"}
+        }       
+
+        $type = "Disable-User"
+        $value = "User Disabled"
+
+        Try
+        {
+          Disable-ADAccount $user -Confirm:$false -ErrorAction Stop
+          #Write-Log $user $type $code $value $description
+          Write-Colour -Green "User disabled." -Yellow "`n`nPress enter to continue."
+          #OH added code
+          Set-extensionAttribute10 -user $user
+
+        }
+     
+        Catch
+        {
+          Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+        }
+      }
+   
+      "n" { Show-UserMenu $user }
+      default { Toggle-User $user }
+    }
+  }
+
+  Read-Host
+  Show-UserMenu $user
+}
+
+Function Change-Expiry($user)
+{
+  Clear
+  Write-Help
+
+  switch($user.employeetype)
+  {
+    "staff"
+    {
+      if((Get-Rights) -notcontains "StaExp")
+      {
+        Write-Colour -Red "You do not have permissions to change staff expiry dates. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+
+      else
+      {
+        Write-Colour -Red "IMPORTANT:" -N "Use this option to set the last working date for staff"
+        Write-Host "that have a leaving date or contract end date.`n"
+        Write-Colour -Red "DO NOT" -N "use to disable a staff account for a disciplinary"
+        Write-Host "(unless the staff member has subsequently left)."
+      }
+    }
+
+    "student"
+    {
+      if((Get-Rights) -notcontains "StuExp")
+      {
+        Write-Colour -Red "You do not have permissions to change student expiry dates. Press enter to continue."
+        Read-Host
+        Show-UserMenu $user
+      }
+    }
+  }
+  
+  if($user.accountExpires -eq 9223372036854775807)
+  {
+    $accexp = 1
+    Write-Colour "`nThe current user expiry is set to:" -Red "Never"
+  }
+
+  else
+  {
+    [DateTime]$accexp = $user.accountExpires
+    $accexp = $accexp.AddYears(1600)
+    Write-Colour "The current user expiry is set to:" -Yellow $accexp.ToShortDateString()
+  }
+
+  Write-Colour "`nTo change account expiry date, enter the new date in the form" -Yellow "dd/mm/yyyy"
+  Write-Colour "`nTo set the account to never expire, type" -Red "Never"
+  Write-Colour "To expire the account immediately, type" -Yellow "Now"
+  Write-Colour "To expire the account at the end of the day, type" -Yellow "Today"
+  Write-Host "`nNew Expiry" -NoNewline
+  $result = Read-Menu
+
+  Write-Host "Enter a reason for this action, or type your own:"
+  Write-Host "`n"
+  Write-Colour -Yellow "1)" -N "Change of leaving date / End of contract date"
+  Write-Colour -Yellow "2)" -N "Disciplinary"
+  Write-Colour -Yellow "3)" -N "Misuse of Account"
+  Write-Colour -Yellow "4)" -N "Misuse of Internet"
+  Write-Colour -Yellow "5)" -N "Non-Payment of Course Fees"
+  Write-Colour -Yellow "6)" -N "Non-Payment of Other Fees"
+  Write-Host "Enter option" -nonewline
+  $description = Read-Menu
+
+  switch($description)
+  {
+    1 { $description = "Change of leaving date / End of contract date" 
+        $code = "COD" }
+    2 { $description = "Disciplinary" 
+        $code = "DIP" }
+    3 { $description = "Misuse of Account" 
+        $code = "MAC" }
+    4 { $description = "Misuse of Internet"
+        $code = "MIN" }
+    5 { $description = "Non-Payment of Course Fees"
+        $code = "NPC" }
+    6 { $description = "Non-Payment of Other Fees"
+        $code = "NPO" }
+    default { $code= "OTH"}
+  }     
+
+  $type = "Change-Expiry"
+  $value = "Expiry Changed to $result"
+
+  Try
+  {
+    if($result -eq "never")
+    {
+      Clear-ADAccountExpiration $user -Confirm:$false -ErrorAction Stop
+      Write-Colour -Green "Expiry removed successfully." -Yellow "`n`nPress enter to continue."
+    }
+
+    else
+    {
+      if($result -eq "now")
+      {
+        $newdate = (Get-Date -ErrorAction Stop)
+        Set-ADAccountExpiration $user -DateTime $newdate -Confirm:$false
+      }
+
+      elseif($result -eq "today")
+      {
+        $newdate = (Get-Date -ErrorAction Stop).AddDays(1)
+        Set-ADAccountExpiration $user -DateTime $newdate -Confirm:$false
+      }
+
+      else
+      {
+        $newdate = (Get-Date $result -ErrorAction Stop)
+        Set-ADAccountExpiration $user -DateTime $newdate -Confirm:$false
+
+        #OH Added code:
+        $futuredate = [dateTime]::Parse($result,([Globalization.CultureInfo]::CreateSpecificCulture('en-GB')))
+        #If expiry date is in the future, then ensure that the account is enabled.
+        if ($futuredate -gt (get-date)){
+            Enable-ADAccount $user
+        }#End if
+        #End OH added code
+      }
+
+      Write-Colour -Green "Expiry set to" $newdate.ToShortDateString() -Yellow "`n`nPress enter to continue."
+    }
+
+   # Write-Log $user $type $code $value $description
+  }
+
+  Catch
+  {
+    Write-Colour "Error:" -Red $_ -Yellow "`n`nPress enter to continue."
+  }
+
+  Read-Host
+  Show-UserMenu $user
+}
+
+Function Get-LastLogonTime($user)
+{
+  Clear
+  Write-Help
+
+  Write-Colour "Getting last logon time," -Yellow "Please wait...`n"
+
+  $domaincontrollers = Get-ADDomainController -Filter *
+  $luser = $null
+  $logons = @()
+
+  foreach($dc in $domaincontrollers)
+  {
+    Write-Colour "Getting data from" -Green $dc.name
+    $luser = Get-ADUser $user -Properties lastlogon -Server $dc.name -ErrorAction Stop
+
+    $lastlogon = New-Object System.Object
+
+    if($luser.lastlogon -ne $null)
+    {
+      [DateTime]$lastlogondate = $luser.lastlogon
+      $lastlogondate = $lastlogondate.AddYears(1600)
+    }
+
+    else
+    {
+      [string]$lastlogondate = "Never"
+    }
+
+    $lastlogon | Add-Member -Type NoteProperty –Name LastLogon –Value $lastlogondate
+    $lastlogon | Add-Member -Type NoteProperty –Name DC –Value $dc.name
+    $logons += $lastlogon
+  }
+
+  $logons = $logons | Sort-Object lastlogon -Descending
+  Write-Colour "`nLast Logon time:" -Green (Get-Date(($logons | Where-Object {$_.lastlogon -ne "Never"} | Select-Object -First 1).lastlogon) -Format "dd/MM/yyyy")
+  Write-Host "`n"
+  Write-Host "Last logon times for all Domain Controllers:`n"
+
+  foreach($logon in $logons)
+  {
+    if($logon.lastlogon -eq "Never")
+    {
+      Write-Colour "Date:" -Yellow "Never" -nonewline
+    }
+
+    else
+    {
+      Write-Colour "Date:" -Yellow (Get-Date($logon.lastlogon) -Format "dd/MM/yyyy") -nonewline
+    }
+    
+    Write-Colour ("DC: " + $logon.dc)
+  }
+
+  Write-Colour -Yellow "`nPress enter to continue."
+  Read-Host
+  Show-UserMenu $user
+}
+
+Function Get-Log($user)
+{
+  $logfile = $null
+
+  if($user.employeetype -eq "Staff")
+  {
+    $logfile = ("$logpath\StaffLogs\" + $user.name + ".log")
+  }
+
+  if($user.employeetype -eq "Student")
+  {
+    $logfile = ("$logpath\StudentLogs\" + $user.name + ".log")
+  }
+
+  if((Test-Path -Path $logfile -PathType Leaf))
+  {
+    return Import-Csv $logfile
+  }
+
+  else
+  {
+    return $null
+  }
+}
+
+<#
+Function Write-Log($user, $type, $code, $value, $description)
+{
+  #Get current username
+  $curuser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+  $curuser = $curuser.Substring((($curuser.IndexOf("\")) + 1))
+
+  #Get Current computername
+  $curpc = (Get-ChildItem env:computername).Value
+
+  $logfile = $null
+
+  #Directory Setup
+  if(Test-Path -Path $logpath)
+  {
+    if($user.employeetype -eq "Staff")
+    {
+      if(!(Test-Path -Path "$logpath\StaffLogs"))
+      {
+        New-Item "$logpath\StaffLogs" -ItemType Directory -ErrorAction Stop | Out-Null
+      }
+
+      $logfile = ("$logpath\StaffLogs\" + $user.name + ".log")
+
+      if(!(Test-Path -Path $logfile -PathType Leaf))
+      {
+        New-Item $logfile -ItemType File -ErrorAction Stop | Out-Null
+      }
+    }
+
+    if($user.employeetype -eq "Student")
+    {
+      if(!(Test-Path -Path "$logpath\StudentLogs"))
+      {
+        New-Item "$logpath\StudentLogs" -ItemType Directory -ErrorAction Stop | Out-Null
+      }
+
+      $logfile = ("$logpath\StudentLogs\" + $user.name + ".log")
+
+      if(!(Test-Path -Path $logfile -PathType Leaf))
+      {
+        New-Item $logfile -ItemType File -ErrorAction Stop | Out-Null
+      }
+    }
+
+    $logentry = New-Object System.Object
+    $logentry | Add-Member -Type NoteProperty –Name User –Value $curuser
+    $logentry | Add-Member -Type NoteProperty –Name Computer –Value $curpc
+    $logentry | Add-Member -Type NoteProperty –Name Date –Value (Get-Date -Format u)
+    $logentry | Add-Member -Type NoteProperty –Name EmployeeNumber –Value $user.employeenumber
+    $logentry | Add-Member -Type NoteProperty –Name Type –Value $type
+    $logentry | Add-Member -Type NoteProperty –Name Code –Value $code
+    $logentry | Add-Member -Type NoteProperty –Name Change –Value $value
+    $logentry | Add-Member -Type NoteProperty –Name Description –Value $description
+    $logentry | Export-Csv -Path $logfile -Append -NoTypeInformation -ErrorAction Stop
+  }
+
+  else
+  {
+    Write-Colour -Red "Error:" -N "Log directory cannot be found."
+  }  
+}#>
+
+#Input from Read-Host should be passed into this
+#function to enable the built in menu navigation.
+#(Q - Exit, 0 - Back, M - Main menu)
+Function Read-Menu($menu)
+{
+  $result = Read-Host " "
+
+  if($result -eq "q")
+  {
+    Clear
+    Write-Colour -Green "Exited.`n"
+    Exit
+  }
+  
+  #Figure out which menu to go back to.
+  #If in doubt, kick back to the main menu.
+  if($result -eq "0")
+  {
+    switch($menu)
+    {
+      default { Show-UserMenu }
+    }
+  }
+  
+  return $result
+}
+
+#Show the user menu.
+Function Show-UserMenu($user)
+{
+  Clear
+  Write-Help
+
+  if(($user.name) -ne $null)
+  {
+    Write-Host "Updating user information...`n"
+    $user = Get-ADUserExtended $user.name
+    Display-ADUser $user
+  }
+  
+  elseif(($user.name) -eq $null)
+  {
+    Write-Host "Enter username or staff/student number (or Q to quit)" -nonewline
+    $uname = Read-Menu
+    Write-Host "`nGetting user information...`n"
+
+	#Use Get-ADUserExtended and grab the user.
+    $user = Get-ADUserExtended $uname
+    
+    if($user -ne $null)
+    {
+      Display-ADUser $user
+    }
+
+    else
+    {
+      Show-UserMenu
+    }
+  }
+  
+  Write-Colour
+  Write-Colour "________________________________________________________`n"
+  Write-Colour
+  Write-Colour -Yellow " 1 " -N "Change password"
+  Write-Colour -Yellow " 2 " -N "Generate a random password"
+  Write-Colour
+  Write-Colour -Yellow " 3 " -N "Enable/disable STUDENT internet"
+  Write-Colour -Yellow " 4 " -N "Change STAFF account expiry date  (for leavers only)"
+  Write-Colour -Yellow " 5 " -N "Enable/disable user account (DO NOT use for leavers)"
+  Write-Colour
+  Write-Colour -Yellow " 9 " -N "View last logon time"
+  Write-Colour -Yellow " 0 " -N "Find another user"
+  Write-Host ""
+  Write-Colour -Yellow " Q " -N "Quit"
+  Write-Host ""
+  #[Disabled by CRW]	Write-Colour -Yellow "9)" -N "Advanced Tasks"
+  Write-Host " Enter option" -nonewline
+  $result = Read-Menu
+
+  switch($result)
+  {
+    1 { Change-Password $user }
+    2 { Generate-Password $user }
+    3 { Toggle-Internet $user }
+    4 { Change-Expiry $user }
+    5 { Toggle-User $user }
+    9 { Get-LastLogonTime $user }
+
+#[Disabled by CRW]	  9 { Show-AdvUserMenu $user }
+    default { Show-UserMenu $user }
+  }
+}
+
+Function Show-AdvUserMenu($user)
+{
+  Clear
+  Write-Help
+
+  if(($user.name) -ne $null)
+  {
+    Write-Host "Updating user information...`n"
+    $user = Get-ADUserExtended $user.name
+    Display-ADUser $user
+  }
+  
+  elseif(($user.name) -eq $null)
+  {
+    Write-Host "Enter user name to view/modify" -nonewline
+    $sresult = Read-Menu
+    Write-Host "`nGetting user information...`n"
+    #Use Get-ADUserExtended and grab the user.
+    $user = Get-ADUserExtended $sresult
+    
+    if($user -ne $null)
+    {
+      Display-ADUser $user
+    }
+
+    else
+    {
+      Show-AdvUserMenu
+    }
+  }
+  
+  Write-Host "`n"
+  Write-Colour -Yellow "1)" -N "View Last Logon Time"
+  Write-Colour -Yellow "2)" -N "Rename User"
+  Write-Colour -Yellow "3)" -N "Add User to Groups"
+  Write-Colour -Yellow "4)" -N "Remove User from Groups"
+  Write-Colour -Yellow "9)" -N "Standard Tasks"
+  Write-Host "Enter option" -nonewline
+  $result = Read-Menu
+
+  switch($result)
+  {
+    1 { Get-LastLogonTime $user }
+    2 { Rename-User $user }
+    3 { Add-UserGroup $user }
+    4 { Remove-UserGroup $user }
+    9 { Show-UserMenu $user }
+    default { Show-AdvUserMenu $user }
+  }
+}
+
+#Try to load the ActiveDirectory module.
+Try
+{
+  Clear
+  Import-Module ActiveDirectory -ErrorAction Stop
+}
+
+#If the ActiveDirectory module cannot be loaded,
+#there's no point continuing, let the user know and exit.
+Catch
+{
+  Write-Colour -Red "Error." -N "The ActiveDirectory module for PowerShell cannot be loaded."
+  Write-Colour "Error Information:" -Red $_.Exception.Message -N "`n"
+  Write-Colour -Red "Exited.`n"
+  Exit
+}
+
+
+#region Code added by OH 19 May 2015
+function Set-msexchHideFromAddressLists {
+#   Date:  19-May-2015
+#  Author: OH
+# Purpose: Writes true or false to the A.D attribute: msexchHideFromAddressLists 
+    param (
+        [PARAMETER(Mandatory=$True)]
+        [string] $User,
+        [PARAMETER(Mandatory=$True)]
+        [ValidateSet("Yes","No")] 
+        [string]$Hide
+    )
+
+    $aduser = get-aduser $user -Properties mail,employeetype
+    $count = $aduser.mail | Measure-Object -Character | select -ExpandProperty characters
+
+    #User is a STAFF member:
+    if ($count -gt 0 -and $aduser.employeetype -eq 'Staff') {
+        if ($hide -eq "No") {
+            Set-ADUser -identity $aduser -Replace @{msexchHideFromAddressLists = $false}
+        } else {
+            Set-ADUser -identity $aduser -Replace @{msexchHideFromAddressLists = $true}
+        }
+        $shell = new-object -ComObject wscript.shell
+        $SecondsToDisplay = 7 # set to -1 to stay on screen until button is clicked.
+        $shell.Popup("PC logon has been re-enabled, however please note that email logon can take up to 2 hours be to re-enabled" ,$SecondsToDisplay,"Important!",0+48)
+    }#end if 
+}#End Function Set-msexchHideFromAddressLists
+
+function Set-extensionAttribute10 {
+#   Date:  19-May-2015
+#  Author: OH
+# Purpose: Writes to: extensionAttribute10
+    param (
+        [PARAMETER(Mandatory=$true)]
+        [string]$user        
+    )
+
+     [string]$DeptResponse = Get-DeptCode
+     [string]$ReasonResponse = Get-ReasonCode
+     [string]$loggedOnUser=(Get-WMIObject -class Win32_ComputerSystem).username
+     $today = get-date -format ("dd-MM-yyyy")
+     $loggedonuser=$loggedOnUser.TrimStart("CHI\")
+
+     $text = "DateManuallyDisabled:$Today,WhoBy:$LoggedOnUser,ReasonCode:$DeptResponse-$ReasonResponse"
+
+     #Write attribute to A.D:
+     Set-ADUser -identity $user -Replace @{extensionAttribute10 = $text}
+}#end Function Set-extensionAttribute10
+
+
+Function Get-DeptCode {
+    [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.VisualBasic') | Out-Null
+    $DeptMessage = "Enter a department code:`n`n (Up to 8 characters, eg: HR or LIBRARY)"
+
+    do {    
+        $DeptCode = [Microsoft.VisualBasic.Interaction]::InputBox($DeptMessage, "Department Code") 
+
+    } while (($deptcode | Measure-Object -Character | select -ExpandProperty characters) -le 0 )
+
+    if ($deptcode.Length -gt 8) {
+        [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | out-null
+        [System.Windows.Forms.MessageBox]::Show("Please do not use more than 8 characters." , "Error") 
+        Get-DeptCode
+    }
+
+    return $deptcode.ToUpper()
+}
+
+Function Get-ReasonCode {
+    [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.VisualBasic') | Out-Null
+    $ReasonMessage = "Enter a reason code:`n`n (Up to 2 digits, eg: 01 or 02)"
+
+    do {    
+        $ReasonCode = [Microsoft.VisualBasic.Interaction]::InputBox($ReasonMessage, "Department Code") 
+
+    } while (($Reasoncode | Measure-Object -Character | select -ExpandProperty characters) -le 0 )
+
+      if ($reasoncode.Length -gt 2) {
+        [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | out-null
+        [System.Windows.Forms.MessageBox]::Show("Please do not use more than 2 digits." , "Error") 
+        Get-ReasonCode
+    }
+
+    return $reasoncode
+}
+
+
+
+#endregion
+
+#Resize PowerShell window to the desired value.
+Resize-Window 120 60
+
+#The entry point into the script.
+Show-UserMenu
