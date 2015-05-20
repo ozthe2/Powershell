@@ -81,5 +81,3 @@ function Update-AccountStatus {
         write-verbose "$DisabledStudents Student accounts disabled"
         
 }#end Function
-
-Update-AccountStatus -Verbose
