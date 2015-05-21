@@ -1,0 +1,18 @@
+   #Converts the int64 number returned by the 'AccountExpires' property from an Active Directory user
+   
+   $SearchBase = "ou=XXX,OU=XXX,OU=XXX,OU=XXX,DC=XXX,DC=XXX"
+   
+   $ADStaffUsers = Get-ADUser -filter * -Properties msexchHideFromAddressLists, AccountExpires,pwdlastset -SearchBase $searchbase
+
+    
+    foreach ($user in $adstaffusers) {
+        $lngValue = $User.accountExpires
+        If (($lngValue -eq 0) -or ($lngValue -gt [DateTime]::MaxValue.Ticks)) {
+            $AcctExpires = "<Never>"
+        } Else {
+            $Date = [DateTime]$lngValue
+            $AcctExpires = $Date.AddYears(1600).ToLocalTime()
+        }
+
+        $AcctExpires
+    }#end foreach
