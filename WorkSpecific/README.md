@@ -13,3 +13,7 @@ Tracks the number of enabled staff acounts that have a mail attribute of "*@chic
 UserUtil
 --------
 Tool for select staff to use in order to manage user accounts: Password changes, disable accounts, set account expiry, enable \ disable Internet access etc etc
+
+Hide-DisabledStaffAccountsFromExchangeAddressBook
+-------------------------------------------------
+Sets 'msexchHideFromAddressLists' attribute to TRUE for all staff accounts in the Current OU that are disabled and have an expiry date in the past.
