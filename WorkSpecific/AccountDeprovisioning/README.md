@@ -30,7 +30,7 @@ Get-UserForDeProvisioning -UserType Staff -DaysExpired 360 | remove-deprovisione
 
 Followed by:
 Get-FilesNotAccessed -UserType Student -DaysSinceLastAccessed 260 -Verbose
-To get student files that may have been recently accessed
+To get student deprovisioned files that may have been recently accessed
 
 Get-FilesNotAccessed -UserType Staff -Verbose
-To get student files that may have been recently accessed
+To get staff deprovisioned files that may have been recently accessed
