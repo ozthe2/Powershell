@@ -1,0 +1,34 @@
+   #       Date: 21 May 2015
+   # Created By: OH
+   #    Purpose: Sets 'msexchHideFromAddressLists' attribute to TRUE for 
+   #             all staff accounts in the Current OU that are disabled 
+   #             and have an expiry date in the past.
+   
+   
+   
+$SearchBase = "ou=XXX,OU=XXX,OU=XXX,OU=XXX,DC=XXX,DC=XXX"
+   
+$ADStaffUsers = Get-ADUser -filter * -Properties msexchHideFromAddressLists, AccountExpires -SearchBase $searchbase
+
+$count = 0
+
+    foreach ($user in $adstaffusers) {
+        $lngValue = $User.accountExpires
+        If (($lngValue -eq 0) -or ($lngValue -gt [DateTime]::MaxValue.Ticks)) {
+            $AcctExpires = "<Never>"
+        } Else {
+            $Date = [DateTime]$lngValue
+            $AcctExpires = $Date.AddYears(1600).ToLocalTime()
+
+            if ($AcctExpires -lt (get-date) -and $user.Enabled -eq $false) {
+                $user.samaccountname
+                $user.Enabled
+                $AcctExpires                 
+                write-warning "Account Expiry date in Past!`n"
+                Set-ADUser -identity $user -Replace @{msexchHideFromAddressLists = $true}
+                $count++
+            }
+        }        
+    }#end foreach
+
+    $count 
