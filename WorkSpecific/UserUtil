@@ -1,7 +1,7 @@
 [System.Reflection.Assembly]::LoadWithPartialName("System.Security.Principal.WindowsIdentity")
 [System.Reflection.Assembly]::LoadWithPartialName("System.Security.Principal.NTAccount")
 
-$studentadlocation = "OU=XXX,OU=XXX,OU=XXX,OU=XXX,DC=XXX,DC=XXX"
+$studentadlocation = "OU=XXX,OU=XXX,OU=XXX,OU=XXX,DC=XXX,DC=XXXL"
 $staffadlocation = "OU=XXX,OU=XXX,OU=XXX,OU=XXX,DC=XXX,DC=XXX"
 $logpath = "S:\Restricted\Logs\UserUtil"
 
@@ -1249,30 +1249,33 @@ Function Toggle-User($user)
     {
       "y" 
       {
-        Write-Host "Enter a reason for this action, or type your own:"
-        Write-Host "`n"
-        Write-Colour -Yellow "1)" -N "Disciplinary"
-        Write-Colour -Yellow "2)" -N "Misuse of Account"
-        Write-Colour -Yellow "3)" -N "Misuse of Internet"
-        Write-Colour -Yellow "4)" -N "Non-Payment of Course Fees"
-        Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees"
-        Write-Host "Enter option" -nonewline
-        $description = Read-Menu
+       # Write-Host "Enter a reason for this action, or type your own:"
+       # Write-Host "`n"
+       # Write-Colour -Yellow "1)" -N "Disciplinary"
+       # Write-Colour -Yellow "2)" -N "Misuse of Account"
+       # Write-Colour -Yellow "3)" -N "Misuse of Internet"
+       # Write-Colour -Yellow "4)" -N "Non-Payment of Course Fees"
+       # Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees"
+       # Write-Colour -Yellow "0)" -N "Other reason not listed above"
+       # Write-Host "Enter option" -nonewline
+       # $description = Read-Menu
 
-        switch($description)
-        {
-          1 { $description = "Disciplinary" 
-              $code = "DIP" }
-          2 { $description = "Misuse of Account" 
-              $code = "MAC" }
-          3 { $description = "Misuse of Internet"
-              $code = "MIN" }
-          4 { $description = "Non-Payment of Course Fees"
-              $code = "NPC" }
-          5 { $description = "Non-Payment of Other Fees"
-              $code = "NPO" }
-          default { $code= "OTH"}
-        }       
+       # switch($description)
+       # {
+       #   1 { $description = "Disciplinary" 
+       #       $code = "DIP" }
+       #   2 { $description = "Misuse of Account" 
+       #       $code = "MAC" }
+       #   3 { $description = "Misuse of Internet"
+       #       $code = "MIN" }
+       #   4 { $description = "Non-Payment of Course Fees"
+       #       $code = "NPC" }
+       #   5 { $description = "Non-Payment of Other Fees"
+       #       $code = "NPO" }
+       #   0 { $description = "Other reason not listed above"
+       #       $code = "OTH" }
+       #   default { $code= "OTH"}
+       # }       
 
         $type = "Enable-User"
         $value = "User Enabled"
@@ -1312,22 +1315,26 @@ Function Toggle-User($user)
         Write-Colour -Yellow "2)" -N "Misuse of Account"
         Write-Colour -Yellow "3)" -N "Misuse of Internet"
         Write-Colour -Yellow "4)" -N "Non-Payment of Course Fees"
-        Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees"
-        Write-Host "Enter option" -nonewline
+        Write-Colour -Yellow "5)" -N "Non-Payment of Other Fees`n"
+        Write-Colour -Yellow "9)" -N "Other reason not listed above`n"
+        Write-Colour -Yellow "0)" -N "Cancel and select a new user"
+        Write-Host "`nEnter option" -nonewline
         $description = Read-Menu
 
         switch($description)
-        {
+        {          
           1 { $description = "Disciplinary" 
-              $code = "DIP" }
+              $code = "01" }
           2 { $description = "Misuse of Account" 
-              $code = "MAC" }
+              $code = "02" }
           3 { $description = "Misuse of Internet"
-              $code = "MIN" }
+              $code = "03" }
           4 { $description = "Non-Payment of Course Fees"
-              $code = "NPC" }
+              $code = "04" }
           5 { $description = "Non-Payment of Other Fees"
-              $code = "NPO" }
+              $code = "05" }
+          9 { $Description = "Other reason not listed above"
+              $code = "OTH"  }  
           default { $code= "OTH"}
         }       
 
@@ -1338,9 +1345,10 @@ Function Toggle-User($user)
         {
           Disable-ADAccount $user -Confirm:$false -ErrorAction Stop
           #Write-Log $user $type $code $value $description
-          Write-Colour -Green "User disabled." -Yellow "`n`nPress enter to continue."
           #OH added code
-          Set-extensionAttribute10 -user $user
+          Set-extensionAttribute10 -user $user -ReasonCode $code
+          Write-Colour -Green "User disabled." -Yellow "`n`nPress enter to continue."
+          
 
         }
      
@@ -1808,7 +1816,7 @@ Catch
 
 #region Code added by OH 19 May 2015
 function Set-msexchHideFromAddressLists {
-#    Date: 19-May-2015
+#   Date:  19-May-2015
 #  Author: OH
 # Purpose: Writes true or false to the A.D attribute: msexchHideFromAddressLists 
     param (
@@ -1836,21 +1844,27 @@ function Set-msexchHideFromAddressLists {
 }#End Function Set-msexchHideFromAddressLists
 
 function Set-extensionAttribute10 {
-#    Date: 19-May-2015
+#   Date:  19-May-2015
 #  Author: OH
 # Purpose: Writes to: extensionAttribute10
     param (
         [PARAMETER(Mandatory=$true)]
-        [string]$user        
+        [string]$user,
+        [string]$ReasonCode        
     )
 
      [string]$DeptResponse = Get-DeptCode
-     [string]$ReasonResponse = Get-ReasonCode
+     
+     #Prompt user for a reason
+     if ($ReasonCode -eq 'OTH') {
+        [string]$ReasonCode = Get-ReasonCode
+      }
+
      [string]$loggedOnUser=(Get-WMIObject -class Win32_ComputerSystem).username
      $today = get-date -format ("dd-MM-yyyy")
      $loggedonuser=$loggedOnUser.TrimStart("CHI\")
 
-     $text = "DateManuallyDisabled:$Today,WhoBy:$LoggedOnUser,ReasonCode:$DeptResponse-$ReasonResponse"
+     $text = "DateManuallyDisabled:$Today,WhoBy:$LoggedOnUser,ReasonCode:$DeptResponse-$Reasoncode"
 
      #Write attribute to A.D:
      Set-ADUser -identity $user -Replace @{extensionAttribute10 = $text}
