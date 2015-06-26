@@ -1,0 +1,84 @@
+Function Get-ApplockerBlocks {
+
+<#
+.SYNOPSIS
+    Displays the exe's \ scripts that are blocked or would be blocked by Applocker policies for a given computer.
+ 
+.DESCRIPTION
+    Queries the applocker event logs for appropriate events relating to blocked or would have been blocked apps\scripts etc 
+ 
+.PARAMETER ComputerName
+    The name of the computer whose applocker event logs you wish to query    
+ 
+.PARAMETER LogType
+    The event log you wish to query - if you leave this parameter out then the default log of: 'EXE and DLL' is used.
+ 
+.PARAMETER Mode
+    Specifies whether you wish to see the logs from an 'Audit Only' applocker policy, an 'Enforced' applocker policy or both
+ 
+.EXAMPLE
+     Get-ApplockerBlocks -ComputerName MyComputer
+
+     See which EXE's and DLL's would have been prevented had the applocker policy been enforced
+ 
+.EXAMPLE
+     Get-ApplockerBlocks -ComputerName MyComputer -LogType MSIandSCRIPT -Mode Enforced
+
+     See which MSI's and Scripts have been prevented from running via an enforced applocker policy
+ 
+.EXAMPLE
+     "MyComputer" | Get-ApplockerBlocks -LogType EXEandDLL -Mode Both
+
+     See which EXE's and DLL's have been blocked and would have been blocked.  View all event log entries for both blocked exe's \DLL's as well as the audit mode entries (you may have previously had audit mode turned on in your policy)
+ 
+.INPUTS
+    You can pipe computer names to this function
+ 
+.OUTPUTS
+    None
+ 
+.NOTES
+    Author:  Owen
+    Website: http://www.fearthemonkey.co.uk
+    Twitter: @ozthe2
+#>
+
+    [CmdletBinding()]
+        
+    Param(              
+        [PARAMETER(Mandatory=$True,
+        ValueFromPipeline=$True)] 
+        [alias("computer","MachineName","CN")]       
+        [string[]]$ComputerName,
+
+        [PARAMETER(Mandatory=$False)]
+        [ValidateSet("EXEandDLL","MSIandSCRIPT","Packagedapp-Deployment","Packagedapp-Execution")]
+        [string]$LogType = "EXEandDLL",
+
+        [PARAMETER(Mandatory=$False)]
+        [ValidateSet("Audit","Enforced","Both")]
+        [string]$Mode = "Audit"
+    )
+
+    BEGIN {
+        [string]$log
+
+        switch ($logtype) {            
+            "MSIandSCRIPT"           {$log = "Microsoft-Windows-AppLocker/MSI and Script"}     
+            "Packagedapp-Deployment" {$log = "Microsoft-Windows-AppLocker/Packaged app-Deployment"}
+            "Packagedapp-Execution"  {$log = "Microsoft-Windows-AppLocker/Packaged app-Execution"}
+            default                  {$log = "Microsoft-Windows-AppLocker/EXE and DLL"}
+        }#end switch
+    }#end begin
+
+
+    PROCESS {
+        foreach ($Computer in $ComputerName) {
+            Switch ($Mode) {
+                "Audit"    {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Warning'}}
+                "Enforced" {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Error'}}
+                default    {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Warning' -or $_.leveldisplayname -eq 'Error'}} 
+            }#end switch
+        } # end foreach        
+    }#end process    
+}
