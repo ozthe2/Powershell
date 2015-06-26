@@ -38,8 +38,9 @@ Function Get-ApplockerBlocks {
     None
  
 .NOTES
-    Author:  Owen
+    Author:  OH
     Website: http://www.fearthemonkey.co.uk
+    Github:  https://github.com/ozthe2
     Twitter: @ozthe2
 #>
 
