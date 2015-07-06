@@ -15,6 +15,9 @@ Function Get-ApplockerBlocks {
  
 .PARAMETER Mode
     Specifies whether you wish to see the logs from an 'Audit Only' applocker policy, an 'Enforced' applocker policy or both
+
+.PARAMETER OnlyDisplayUniqueRules
+    Groups by the message property in order to only show unique rules rather than a whole load of the same rule over and over...
  
 .EXAMPLE
      Get-ApplockerBlocks -ComputerName MyComputer
@@ -58,7 +61,10 @@ Function Get-ApplockerBlocks {
 
         [PARAMETER(Mandatory=$False)]
         [ValidateSet("Audit","Enforced","Both")]
-        [string]$Mode = "Audit"
+        [string]$Mode = "Audit",
+
+        [parameter(Mandatory=$false)]
+        [Switch]$OnlyDisplayUniqueRules
     )
 
     BEGIN {
@@ -75,11 +81,19 @@ Function Get-ApplockerBlocks {
 
     PROCESS {
         foreach ($Computer in $ComputerName) {
-            Switch ($Mode) {
-                "Audit"    {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Warning'}}
-                "Enforced" {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Error'}}
-                default    {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Warning' -or $_.leveldisplayname -eq 'Error'}} 
-            }#end switch
+            if ($OnlyDisplayUniqueRules) {
+                Switch ($Mode) {
+                    "Audit"    {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Warning'} | group message | select name}
+                    "Enforced" {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Error'} | group message | select name}
+                    default    {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Warning' -or $_.leveldisplayname -eq 'Error'} | group message | select name} 
+                }#end switch
+            } else {
+                Switch ($Mode) {
+                    "Audit"    {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Warning'}}
+                    "Enforced" {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Error'}}
+                    default    {Get-WinEvent -LogName $log -ComputerName $computer  | where {$_.leveldisplayname -eq 'Warning' -or $_.leveldisplayname -eq 'Error'}} 
+                }#end switch
+            }
         } # end foreach        
     }#end process    
 }
