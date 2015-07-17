@@ -51,7 +51,7 @@ Function Create-StudentObject {
     BEGIN {
 
         #Log locations (Do not append a backslash)
-        $LogLocation = "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\Logs"        
+        $LogLocation = "\\xxx\staffshare\Restricted\Info Services (CSU)\Student User Creator\Logs"        
 
         #Any ACL's that cannot be set on the home directory will have the associated username
         #stored in this array for processing in the 'End {}' section of this function.
@@ -748,7 +748,7 @@ Function Create-StudentObject {
         $newfilename = ("output-" + ($date = Get-Date -format yyyy.MM.dd.HH.mm.ss) + ".csv")
         
         try {
-            Move-OHFiles -Source "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\output.csv" -Destination "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\Processed\$newfilename" -ea SilentlyContinue
+            Move-OHFiles -Source "\\xxx\staffshare\Restricted\Info Services (CSU)\Student User Creator\output.csv" -Destination "\\xxx\staffshare\Restricted\Info Services (CSU)\Student User Creator\Processed\$newfilename" -ea SilentlyContinue
         } catch {
             write-error "Unable to move output.csv to new directory"
             Write-Log "Unable to move output.csv to new directory" -LogExtension .err
@@ -763,7 +763,7 @@ Function Create-StudentObject {
 
 
 # --- Run the script...
-import-Csv "\\chidata\staffshare\Restricted\Info Services (CSU)\Student User Creator\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","AcademicYear","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject #-verbose
+import-Csv "\\xxx\staffshare\Restricted\Info Services (CSU)\Student User Creator\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","AcademicYear","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject #-verbose
 
 testing...
 #import-Csv "c:\output.csv" -Header "ID","Firstname","Surname","DOB","CourseCode","CourseDescription","AcademicYear","CourseStart","CourseEnd","UnknownField2","UnknownField3" | Import-UserCSV | Create-StudentObject -verbose
