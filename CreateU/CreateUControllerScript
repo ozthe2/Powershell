@@ -35,7 +35,7 @@ Function Create-StudentObject {
             #Path to root home dir location eg \\MyServer\Share\HomeDirs
             [PARAMETER(Mandatory=$False)]
             [String]
-            $RootHomeDirLocation = "\\Chidata\ClassDocs\Students",
+            $RootHomeDirLocation = "\\xxx\xxx\Students",
 
             #The mail domain including the @ eg "@wingtip.pri"
             [PARAMETER(Mandatory=$False)]
