@@ -1,0 +1,22 @@
+#Get file permissions for a specific Directory
+
+
+function Get-DirPermissions {
+    $Path = "C:\Scripts"
+    $Directory = get-acl -path $path
+
+
+    Foreach ($dir in $Directory.Access) {
+
+        [PSCustomObject] @{
+            Path = $Path
+            Owner = $directory.Owner
+            Group = $Dir.IdentityReference
+            AccessType = $dir.accessControlType
+            Rights = $dir.fileSystemRights
+        }
+    }
+}
+
+
+Get-DirPermissions
