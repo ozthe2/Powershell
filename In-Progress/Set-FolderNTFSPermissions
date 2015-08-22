@@ -1,0 +1,1 @@
+Get-ChildItem -Recurse -Directory c:\tempshare\folder1 | % {cacls "c:\tempshare\folder1\$_" /t /e /g testadminuser1:F}
