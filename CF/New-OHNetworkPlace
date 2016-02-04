@@ -1,0 +1,92 @@
+Function New-OHNetworkPlace {
+
+<#
+.SYNOPSIS
+    Creates a new Network Place.
+ 
+.DESCRIPTION
+    Creates a new Network Place.
+ 
+.PARAMETER Shortcutname
+    The name of the Network place that appears in explorer 
+ 
+.PARAMETER Path
+    The path to the resource that you wish to use
+ 
+.EXAMPLE
+     New-OHNetworkPlace -ShortcutName OHTEST -Path "\\Server\Path\To\Resource"
+
+     Creates a network place called OHTEST that points to \\Server\Path\To\Resource
+ 
+.INPUTS
+    None
+ 
+.OUTPUTS
+    None
+ 
+.NOTES
+    Author:  OH
+    Credit for this code: https://social.technet.microsoft.com/Forums/scriptcenter/en-US/bd00d576-6096-4c8d-bd82-3c5853eb6675/create-shortcut-in-my-network-places-using-powershell?forum=ITCG
+    Website: http://www.fearthemonkey.co.uk
+    Github:  https://github.com/ozthe2
+    Twitter: @ozthe2
+#>
+
+    [CmdletBinding()]
+        
+    Param(              
+        [PARAMETER(Mandatory=$True)]               
+        [string[]]$ShortcutName,
+
+        [PARAMETER(Mandatory=$True)]        
+        [string]$Path
+    )
+
+    BEGIN {}
+
+    PROCESS { 
+        $const_NETHOOD = 0x13
+        $oApp = new-Object -com Shell.Application
+        $oShell = new-Object -com Wscript.Shell
+
+        $NetHood = ($oApp.Namespace($const_NETHOOD)).Self.Path
+        $NetLocLocalPath = "$NetHood\$ShortcutName"
+
+        if ( !(test-Path $NetLocLocalPath -pathType container) )
+        {
+	        new-Item $NetLocLocalPath -type directory -force
+	        attrib "$NetLocLocalPath" +R
+        }
+
+        if ( !(test-Path "$NetLocLocalPath\Desktop.ini" -pathType leaf) )
+        {
+	        $oFile = new-Item "$NetLocLocalPath\Desktop.ini" -type file -force
+	        add-Content $oFile "[.ShellClassInfo]"
+	        add-Content $oFile "CLSID2={0AFACED1-E828-11D1-9187-B532F1E9575D}"
+	        add-Content $oFile "Flags=2"
+	        attrib "$NetLocLocalPath\Desktop.ini" +H +S -A
+        }
+
+
+        if ( (test-Path "$NetLocLocalPath\target.lnk" -pathType leaf) )
+        {
+	        $oLnk = $oShell.CreateShortcut("$NetLocLocalPath\target.lnk")
+	        $OldLnk = $oLnk.TargetPath
+
+	        if ($OldLnk -ne $Path)
+	        {
+		        $oLnk.TargetPath = $Path
+		        $oLnk.Save()
+	        }
+        }
+        else
+        {
+	        $oLnk = $oShell.CreateShortcut("$NetLocLocalPath\target.lnk")
+
+	        $oLnk.TargetPath = $Path
+	        $oLnk.Save()
+        }
+        
+         
+    }#end process    
+}
