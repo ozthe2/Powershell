@@ -1,0 +1,54 @@
+<#
+.Synopsis
+Queries the Exchange Databases for the one that holds the least mailboxes
+.DESCRIPTION
+Queries the Exchange Databases for the one that holds the least mailboxes and returns the name of the DB that holds the least.  By default, DBGroup11 is not included in this analysis.
+.PARAMETER IncludeDBGroup11
+If you include this switch then DBGroup11 will be included in the analysis.
+.EXAMPLE
+Get-LowestDB
+
+The above example will return the name of the DB that holds the least mailboxes.  It will not include DBGroup11 in this analysis.
+.EXAMPLE
+Get-LowestDB -IncludeDBGroup11
+
+The above example will return the name of the DB that holds the least mailboxes.  It will include DBGroup11 in this analysis.
+.NOTES
+Version: 1.0
+Date: 22 June 2016
+Created By: OH
+.LINK
+http://www.fearthemonkey.co.uk
+.LINK
+https://github.com/ozthe2/Powershell.git
+#>
+function Get-LowestDB {
+    [cmdletbinding()]
+
+    Param (
+    [switch]$IncludeDBGroup11    
+    ) 
+
+    #Get the database with the lowest number of mailboxes
+    write-verbose "Please wait while the databases are gathered..."
+    $MBData = Get-Mailbox | Group-Object -Property Database | Select-Object name,count
+    $Lowest = 99999
+
+    write-verbose "Calculating which database holds the least mailboxes.."
+    foreach ($item in $MBData) {
+        #We do not want DBGroup 11 unless the user is in Germany - this will be tested for elsewhere
+        if (!($IncludeDBGroup11)) {
+            if ($item.Name -eq "DBGroup11") {continue}
+        }
+
+        if ($item.Count -lt $Lowest) {
+            $lowest = $item.count
+            $DBToUse=$item.Name
+        }
+        write-debug "$($item.name) $($item.count)"
+    }
+    write-debug "$DBToUse has the lowest number of mailboxes at:  $lowest"
+
+    return $DBToUse
+
+}#end function
