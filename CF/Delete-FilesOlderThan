@@ -1,0 +1,52 @@
+<#
+.Synopsis
+   Deletes files with a last write time older than x from the specified path and subdirs.
+.DESCRIPTION
+   Deletes files meeting this criteria: Only files that have a last write time older than x days from today (as specified by the OlderThanDays parameter, 7 days ago by default), the file name contains the word in the parameter FileNameContains (by default it is the word 'Archive') and has the .zip extension will be deleted. (Includes those in sub-directories)
+.PARAMETER OlderThanDays of days from today
+    This specifies how many days older than today you wish to include in the resulting set that will be deleted.
+.PARAMETER Path
+    The path to where the files that are to be deleted reside.
+.PARAMETER FileNameContains
+    In my environment, the backup file has the word "Archive" in the filename.  This ensures that only files that contain this word in the filename will be included in the resulting set to be deleted.
+.EXAMPLE
+   PS C:\> Delete-FilesOlderThan -Path "c:\ohtemp"
+
+   Delete files over 7 days old that contain the word "Archive" in the filename and have a .zip extension that reside in c:\ohtemp
+.EXAMPLE
+   PS C:\> Delete-FilesOlderThan -OlderThanDays 3 -FileNameContains "test" -Path "c:\Another\Folder"
+
+   Delete files over 3 days old that contain the word "test" in the filename and have a .zip extension that reside in c:\Another\Folder
+.NOTES
+    Author: OH
+    Created: 05 January 2016
+.LINK
+    https://github.com/ozthe2
+#>
+
+Function Delete-FilesOlderThan {
+
+    [CmdletBinding (SupportsShouldProcess=$true)]
+    Param (
+        [parameter(Mandatory=$false)]
+        [Int]$OlderThanDays = 7,
+        
+        [parameter(Mandatory=$true)]
+        [ValidateScript({
+            if(Test-Path $_){$true}else{Throw "Invalid path given: $_"}
+            })]
+        [String]$Path, #= "G:\SQLBCK",  
+        
+        [parameter(Mandatory=$false)]     
+        [String]$FileNameContains = "archive"
+    )
+
+   
+    Get-ChildItem -Path $path -Recurse -Force  | where {$_.name -like "*$FileNameContains*.zip" -and $_.LastWriteTime -lt (Get-Date).AddDays(-$OlderThanDays) } | Remove-Item -Force    
+        
+
+}#function
+
+
+#testing
+#Delete-FilesOlderThan -OlderThanDays 3 -FileNameContains "test" -Path "c:\Another\Folder" -WhatIf
