@@ -24,7 +24,7 @@
     https://github.com/ozthe2
 #>
 
-Function Delete-FilesOlderThan {
+Function Delete-Files {
 
     [CmdletBinding (SupportsShouldProcess=$true)]
     Param (
@@ -49,4 +49,4 @@ Function Delete-FilesOlderThan {
 
 
 #testing
-#Delete-FilesOlderThan -OlderThanDays 3 -FileNameContains "test" -Path "c:\Another\Folder" -WhatIf
+#Delete-Files -OlderThanDays 3 -FileNameContains "test" -Path "c:\Another\Folder" -WhatIf
