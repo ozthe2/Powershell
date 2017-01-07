@@ -10,11 +10,11 @@
 .PARAMETER FileNameContains
     In my environment, the backup file has the word "Archive" in the filename.  This ensures that only files that contain this word in the filename will be included in the resulting set to be deleted.
 .EXAMPLE
-   PS C:\> Delete-FilesOlderThan -Path "c:\ohtemp"
+   PS C:\> Delete-Files -Path "c:\ohtemp"
 
    Delete files over 7 days old that contain the word "Archive" in the filename and have a .zip extension that reside in c:\ohtemp
 .EXAMPLE
-   PS C:\> Delete-FilesOlderThan -OlderThanDays 3 -FileNameContains "test" -Path "c:\Another\Folder"
+   PS C:\> Delete-Files -OlderThanDays 3 -FileNameContains "test" -Path "c:\Another\Folder"
 
    Delete files over 3 days old that contain the word "test" in the filename and have a .zip extension that reside in c:\Another\Folder
 .NOTES
