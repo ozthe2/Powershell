@@ -10,6 +10,7 @@ Purpose: Reads the Group Policy preference item for printers
          and deploys \ deletes printers via Powershell script.
 
 
+
 Change Log:
 rev 1.4 Some targeting may include one or more 'OR' conditions.  Eg the computer must exist in this OU OR that OU.  This is now taken care of in the script.
 rev 1.3 Fixed setting default printer.
