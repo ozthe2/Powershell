@@ -1,92 +1,38 @@
-Function New-OHNetworkPlace {
-
-<#
-.SYNOPSIS
-    Creates a new Network Place.
- 
-.DESCRIPTION
-    Creates a new Network Place.
- 
-.PARAMETER Shortcutname
-    The name of the Network place that appears in explorer 
- 
-.PARAMETER Path
-    The path to the resource that you wish to use
- 
-.EXAMPLE
-     New-OHNetworkPlace -ShortcutName OHTEST -Path "\\Server\Path\To\Resource"
-
-     Creates a network place called OHTEST that points to \\Server\Path\To\Resource
- 
-.INPUTS
-    None
- 
-.OUTPUTS
-    None
- 
-.NOTES
-    Author:  OH
-    Credit for this code: https://social.technet.microsoft.com/Forums/scriptcenter/en-US/bd00d576-6096-4c8d-bd82-3c5853eb6675/create-shortcut-in-my-network-places-using-powershell?forum=ITCG
-    Website: http://www.fearthemonkey.co.uk
-    Github:  https://github.com/ozthe2
-    Twitter: @ozthe2
-#>
-
-    [CmdletBinding()]
-        
-    Param(              
-        [PARAMETER(Mandatory=$True)]               
-        [string[]]$ShortcutName,
-
-        [PARAMETER(Mandatory=$True)]        
-        [string]$Path
+function New-NetworkShortcut()
+{
+    param(
+        [Parameter(Mandatory=$true)] [string]$Name,
+        [Parameter(Mandatory=$true)] [string]$Target
     )
 
-    BEGIN {}
+    $networkshortcut_name = $Name
+    $networkshortcut_target = $Target
 
-    PROCESS { 
-        $const_NETHOOD = 0x13
-        $oApp = new-Object -com Shell.Application
-        $oShell = new-Object -com Wscript.Shell
+    $networkshortcuts_path = [Environment]::GetFolderPath('NetworkShortcuts')
 
-        $NetHood = ($oApp.Namespace($const_NETHOOD)).Self.Path
-        $NetLocLocalPath = "$NetHood\$ShortcutName"
+    $networkshortcut_path = "$networkshortcuts_path\$networkshortcut_name"
+    $desktopini_path = "$networkshortcut_path\desktop.ini"
+    $targetlnk_path = "$networkshortcut_path\target.lnk"
 
-        if ( !(test-Path $NetLocLocalPath -pathType container) )
-        {
-	        new-Item $NetLocLocalPath -type directory -force
-	        attrib "$NetLocLocalPath" +R
-        }
+    $desktopini_text = "[.ShellClassInfo]`r`nCLSID2={0AFACED1-E828-11D1-9187-B532F1E9575D}`r`nFlags=2"
 
-        if ( !(test-Path "$NetLocLocalPath\Desktop.ini" -pathType leaf) )
-        {
-	        $oFile = new-Item "$NetLocLocalPath\Desktop.ini" -type file -force
-	        add-Content $oFile "[.ShellClassInfo]"
-	        add-Content $oFile "CLSID2={0AFACED1-E828-11D1-9187-B532F1E9575D}"
-	        add-Content $oFile "Flags=2"
-	        attrib "$NetLocLocalPath\Desktop.ini" +H +S -A
-        }
+    if( Test-Path -Path $networkshortcut_path -PathType Container )
+    {
+        Remove-Item -Path $networkshortcut_path -Recurse -Force
+    }
 
+    [void](New-Item -Path $networkshortcut_path -ItemType directory)
 
-        if ( (test-Path "$NetLocLocalPath\target.lnk" -pathType leaf) )
-        {
-	        $oLnk = $oShell.CreateShortcut("$NetLocLocalPath\target.lnk")
-	        $OldLnk = $oLnk.TargetPath
+    Set-ItemProperty -Path $networkshortcut_path -Name Attributes -Value 1
 
-	        if ($OldLnk -ne $Path)
-	        {
-		        $oLnk.TargetPath = $Path
-		        $oLnk.Save()
-	        }
-        }
-        else
-        {
-	        $oLnk = $oShell.CreateShortcut("$NetLocLocalPath\target.lnk")
+    Out-File -FilePath $desktopini_path -InputObject $desktopini_text -Encoding ascii
 
-	        $oLnk.TargetPath = $Path
-	        $oLnk.Save()
-        }
-        
-         
-    }#end process    
+    Set-ItemProperty -Path $desktopini_path -Name Attributes -Value 6
+
+    $WshShell = New-Object -com WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($targetlnk_path)
+    $Shortcut.TargetPath = $networkshortcut_target
+    $Shortcut.Save()
 }
+
+#New-NetworkShortcut -Name 'IT-UK' -Target '\\Server\Path\IT-UK$'
