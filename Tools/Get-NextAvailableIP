@@ -1,0 +1,27 @@
+#By:OH
+#Twitter: @ozthe2
+#www.fearthemonkey.co.uk
+
+
+function Get-AvailableServerIP {
+param (
+    [int]$StartOctet = 69,
+    [int]$EndOctet = 254,
+    $ip = "10.10.10." #Enter ip to checkand include trailing fullstop, eg for /24 "10.10.10."
+)
+
+#Shows IP addresses that do not respond to ping in the server IP range.
+    Clear-Host
+    write-host "Please wait: Checking...." -ForegroundColor Yellow
+    for ($i=$StartOctet; $i -lt $EndOctet+1; $i++) {
+        if (!(Test-Connection -computername "$ip$i" -Count 1 -quiet)){
+            write-host "No ping response: $ip$i" -ForegroundColor Green
+        } else {            
+            $dns = Resolve-DnsName -Name "$ip$i" -QuickTimeout
+            write-host -ForegroundColor Red "$ip$i in use: $($dns.namehost)"
+        }
+    }
+}
+
+
+Get-AvailableServerIP
