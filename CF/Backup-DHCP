@@ -1,14 +1,14 @@
 <#
-   Date: 12-September 2016
-Version: 1.0
+   Date: 10-January 2017
+Version: 2.0
  Author: Owen Heaume
-Purpose: Back up DHCP server UKxxx and copy back up to a network location
+Purpose: Back up DHCP server UKxxx locally and then copy to a network location
 #>
 
 function Backup-OHDHCP {
 
-    $DHCPServer = "UKxxx.domain.local"
-    $NetworkRootLocation = "\\ukxxx\IT\DHCPBackup"
+    $DHCPServer = "UKxxx.domain.com"
+    $NetworkRootLocation = "\\ukxxx\itsecure$\Backups\DHCPBackup"
 
     #Ensure local directory is present - if not create it
     if (!(Test-Path -Path "c:\dhcpbackup")) {
@@ -18,12 +18,10 @@ function Backup-OHDHCP {
     #Create backup of DHCP database
     Backup-DhcpServer -path "c:\dhcpbackup"
 
-
     #Ensure the root folder is present at the network location, if not, create it
     if (!(Test-Path $NetworkRootLocation)) {
-    New-Item -Path "\\ukxxx\it" -ItemType "directory" -Name "DHCPBackup"
+    New-Item -Path "\\ukxxx\itsecure$\Backups" -ItemType "directory" -Name "DHCPBackup"
     }
-
 
     #If the back up has already run, then the folder will already exist - in that case, exit the script, otherwise, create the folder.
     if (Test-Path ($NetworkBackupLocation = Join-Path $NetworkRootLocation -ChildPath (Get-Date -Format dd-MMM-yyy))) {
@@ -31,10 +29,10 @@ function Backup-OHDHCP {
     } else {
         New-Item -Path $NetworkBackupLocation -ItemType "directory"
     }
-
     
     #Copy backup files to ukxxx
     Copy-Item -Path "C:\dhcpbackup\*" -Destination $NetworkBackupLocation -Recurse
 }
 
+#Script entry point
 Backup-OHDHCP
