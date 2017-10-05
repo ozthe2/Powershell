@@ -152,5 +152,3 @@ Function Get-ComputerInfo {
 
     end {}
 }#function
-
-Get-ComputerInfo
