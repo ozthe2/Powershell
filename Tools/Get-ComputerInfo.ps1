@@ -16,7 +16,7 @@
     The computer information of 'Computer1' and 'Computer2' will be displayed on screem.  It will not contain BIOS, Disk or CPU info as the -Detailed switch has not been used.
 .EXAMPLE
     (get-adcomputer -filter * -SearchBase 'ou=servers,ou=MyOU,dc=mydomain,dc=local').name  | Get-ComputerInfo -Detailed | export-csv C:\Output.csv -NoTypeInformation
-    The computer objects in the OU obtained by 'Get-ADComputer' will have all available computer informationwill be output to a CSV file.
+    The computer objects in the OU obtained by 'Get-ADComputer' will have all available computer information output to a CSV file.
 .EXAMPLE
     servers.txt | Get-ComputerInfo -detailed
     The computernames contained in Servers.txt will be used as the input of the command and all available computer information will be displayed.
