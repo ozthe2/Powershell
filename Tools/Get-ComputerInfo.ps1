@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Gets computer information such as Network details and Operating system installed
 .DESCRIPTION
@@ -9,24 +9,19 @@
 .PARAMETER Detailed
     When you use this switch, additional info will be obtained: Disk, BIOS and Processor information
 .EXAMPLE
-    Get-ComputerInfo -ComputerName MyComputer -Detailed
+    Get-CFComputerInfo -ComputerName MyComputer -Detailed
     The detailed computer information of 'MyComputer' will be displayed on screen.
 .EXAMPLE
-    'computer1','computer2' | Get-ComputerInfo
+    'computer1','computer2' | Get-CFComputerInfo
     The computer information of 'Computer1' and 'Computer2' will be displayed on screem.  It will not contain BIOS, Disk or CPU info as the -Detailed switch has not been used.
 .EXAMPLE
-    (get-adcomputer -filter * -SearchBase 'ou=servers,ou=MyOU,dc=mydomain,dc=local').name  | Get-ComputerInfo -Detailed | export-csv C:\Output.csv -NoTypeInformation
+    (get-adcomputer -filter * -SearchBase 'ou=servers,ou=MyOU,dc=mydomain,dc=local').name  | Get-CFComputerInfo -Detailed | export-csv C:\Output.csv -NoTypeInformation
     The computer objects in the OU obtained by 'Get-ADComputer' will have all available computer information output to a CSV file.
 .EXAMPLE
-    servers.txt | Get-ComputerInfo -detailed
+    servers.txt | Get-CFComputerinfo -detailed
     The computernames contained in Servers.txt will be used as the input of the command and all available computer information will be displayed.
-.NOTES
-Version 1
-By: OzThe2
-.LINK
-https://www.fearthemonkey.co.uk
 #>
-Function Get-ComputerInfo {
+Function Get-CFComputerInfo {
     [CmdletBinding()]
     param(  
         [Parameter(
@@ -77,14 +72,15 @@ Function Get-ComputerInfo {
                     if ($network.ipaddress -eq $NULL) {
                         continue
                     } else {
-                        $obj | Add-Member -MemberType NoteProperty -Name "IPAddressIndex($($network.index[0]))"  -value $($Network.index[0])                        
-                    }
-                    
-                    if ($network.ipaddress -eq $NULL) {
-                        continue
-                    } else {
+                        $obj | Add-Member -MemberType NoteProperty -Name "IPAddressIndex($($network.index[0]))"  -value $($Network.index[0]) 
                         $obj | Add-Member -MemberType NoteProperty -Name "IPAddress($($network.index[0]))"  -value $($Network.ipaddress[0])                        
                     }
+                    
+                   # if ($network.ipaddress -eq $NULL) {
+                   #     continue
+                   # } else {
+                   #     $obj | Add-Member -MemberType NoteProperty -Name "IPAddress($($network.index[0]))"  -value $($Network.ipaddress[0])                        
+                   # }
                     
                     if ($network.ipsubnet -eq $NULL) {
                         $obj | Add-Member -MemberType NoteProperty -Name "Subnet($($network.index[0]))"  -value ""
