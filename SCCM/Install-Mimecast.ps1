@@ -52,11 +52,10 @@ param (
         }
     }
 
-    process {
-        #Check to see if outlook has started, if so, close it..Mimecast will not install if outlook is open.
-        Get-Process 'OUTLOOK' -ea SilentlyContinue | Stop-Process -Force
-
+    process {  
         if ($locationSet) {
+            #Check to see if outlook has started, if so, close it..Mimecast will not install if outlook is open.
+            Get-Process 'OUTLOOK' -ea SilentlyContinue | Stop-Process -Force
             #Check for bitness and install correct version
             switch (Get-ItemPropertyValue -Name "Bitness") {
                 "x86" { Start-Process 'C:\Windows\System32\msiexec.exe' " /i ""$WorkingDir\$32bit_msi_Name"" /qn" -NoNewWindow -Wait }
