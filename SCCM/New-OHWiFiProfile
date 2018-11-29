@@ -1,0 +1,92 @@
+#Requires -Version 3.0
+function New-OHWifiProfile {
+<#
+.SYNOPSIS
+    Deploys WiFi profiles for all users.
+.DESCRIPTION
+    Deploys WiFi profiles that have been exported using the follwing command:
+        - netsh wlan export profile "ProfileName" folder="C:\Path\To\ExportFolder" key=clear
+    To view WiFi profiles use this command:
+        - netsh wlan show profiles
+    To assist in ConfigMgr detection rules, a new registry key is created HKLM:\Software\CF-IT as well as several values: 
+        - Version (This holds the value specified by the parameter 'DeploymentVersion' and is recommended to be used for the ConfigMgr detection method.
+        - xxxxxx eg Wi-Fi-MyProfile (The name of each WiFi .xml file (One entry per deployed WiFi .xml) that has been deployed with the value data also matching the 'DeploymentVersion' parameter.  
+.PARAMETER ProfileDir
+    The path to the root directory that contains your WiFi profile .xml files.  If deploying this via ConfigMgr, leave this parameter out.
+.PARAMETER DeploymentVersion
+    Any unique identifier.  We can use this in ConfigMgr in order to test for a successful deployment. Recommended to use sequential numbering. Increase the value for each subsequent deployment.
+.EXAMPLE
+    PS C:\> New-OHWifiProfile -ProfileDir "c:\ohtemp\WiFiprofiles" -DeploymentVersion 1
+    Looks for WiFi .xml files in C:\ohtemp\WiFiprofiles and creates the profiles as well as relevant registry keys with the verion number of: 1
+.EXAMPLE
+     powershell.exe -executionpolicy bypass -command "& {. .\New-OHWiFiProfile.ps1; new-ohWiFiprofile -DeploymentVersion 1 }"
+     In ConfigMgr, create an Application of type: Script Installer, on the 'Programs' tab of your Dpeloyment Type, this is the command that you enter in the 'Installation Program' field.  
+         Ensure that the .ps1 script and all .xml files are in the same directory.
+.NOTES
+ConfigMgr usage: Place this script and all exported .xml profiles in the same source folder on your sccm server and create a new Application which deploys this script.
+Example:for Installation Program use the following:  powershell.exe -executionpolicy bypass -command "& {. .\New-OHWiFiProfile.ps1; new-ohWiFiprofile -DeploymentVersion 1 }"
+For the detection method, we can detect the registry key 'HKLM:\software\CF-IT\WiFiProfiles' for 'Version' matching the specified parameter: -DeploymentVersion
+Created by: OH
+Date: 29-Nov-2018
+Version: 1.0.0
+
+#>
+
+    [CmdletBinding(DefaultParameterSetName='Parameter Set 1',
+    SupportsShouldProcess=$false,
+    PositionalBinding=$false)
+    ]
+
+    Param(
+        [Parameter(Mandatory=$false,
+        HelpMessage="Enter the path to the root directory that holds the WiFi profiles.",
+        ValueFromPipeline=$false,
+        ValueFromPipelineByPropertyName=$false,
+        Position=0)]
+        [ValidateScript({
+            if( !(Test-Path $_) ){
+                throw "Folder $_ does not exist"
+            }
+            return $true
+        })]
+        [string]
+        $ProfileDir = $MyInvocation.PSScriptRoot,
+        [parameter (Mandatory=$true)]
+        [string]
+        $DeploymentVersion
+    )
+
+    Begin {
+        Push-Location
+        Set-Location $ProfileDir
+        $Profiles = Get-item  * -include *.xml           
+    }        
+
+    Process {
+        if ($profiles.count -gt 0) {
+            foreach ($Profile in $Profiles) {
+                Start-Process -FilePath "netsh" -ArgumentList "wlan add profile filename=$($Profile.name) user=all" -NoNewWindow -Wait -ea SilentlyContinue
+            }
+        }
+    } #proc
+
+    End {
+        #Create the reg Key if required
+        if (!(test-path 'HKLM:\software\CF-IT\WiFiProfiles')) {
+            New-Item -Path 'HKLM:\Software' -Name 'CF-IT\WiFiProfiles' -force
+        }
+
+        Push-Location
+        Set-Location 'HKLM:\software\CF-IT\WiFiProfiles'
+
+        #Add the version number to registry
+        New-ItemProperty -Path .\ -name 'Version' -Value $DeploymentVersion -PropertyType string -force
+
+        #Add installed WiFi profile names to registry
+        Foreach ($Profile in $profiles) {
+            New-ItemProperty -Path .\ -name ($profile.BaseName) -Value $DeploymentVersion -PropertyType string -force
+        }
+
+       pop-location
+    }
+}
