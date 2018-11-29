@@ -4,7 +4,7 @@ function New-OHWifiProfile {
 .SYNOPSIS
     Deploys WiFi profiles for all users.
 .DESCRIPTION
-    Deploys WiFi profiles that have been exported using the follwing command:
+    Deploys WiFi profiles that have been exported using the following command:
         - netsh wlan export profile "ProfileName" folder="C:\Path\To\ExportFolder" key=clear
     To view WiFi profiles use this command:
         - netsh wlan show profiles
