@@ -17,7 +17,7 @@ function New-OHWifiProfile {
     Any unique identifier.  We can use this in ConfigMgr in order to test for a successful deployment. Recommended to use sequential numbering. Increase the value for each subsequent deployment.
 .EXAMPLE
     PS C:\> New-OHWifiProfile -ProfileDir "c:\ohtemp\WiFiprofiles" -DeploymentVersion 1
-    Looks for WiFi .xml files in C:\ohtemp\WiFiprofiles and creates the profiles as well as relevant registry keys with the verion number of: 1
+    Looks for WiFi .xml files in C:\ohtemp\WiFiprofiles and creates the profiles as well as relevant registry keys with the version number of: 1
 .EXAMPLE
      powershell.exe -executionpolicy bypass -command "& {. .\New-OHWiFiProfile.ps1; new-ohWiFiprofile -DeploymentVersion 1 }"
      In ConfigMgr, create an Application of type: Script Installer, on the 'Programs' tab of your Dpeloyment Type, this is the command that you enter in the 'Installation Program' field.  
