@@ -1,0 +1,64 @@
+#Requires -Version 3.0
+Function Invoke-ApplicationRemoval {
+<#
+.SYNOPSIS
+    Uninstalls an application
+.DESCRIPTION
+    Uninstalls one or more applications by searching the registry.
+    It is recommended that you run this function with the -WhatIf parameter first to ensure that it will uninstall the expected application(s)
+.PARAMETER UninstallSearchFilter
+    The application name that you are looking to uninstall.  This can be part of a name and a 'like' search will be performed.
+.EXAMPLE    
+PS C:\Scripts> 'firefox' | Invoke-ApplicationRemoval -WhatIf
+What if: Performing the operation "Uninstall" on target "Mozilla Firefox 63.0.3 (x64 en-GB)"
+What if: Performing the operation "Uninstall" on target "Mozilla Firefox 63.0.3 (x86 en-GB)"
+.EXAMPLE
+PS C:\Scripts> 'reader dc' | Invoke-ApplicationRemoval -WhatIf
+What if: Performing the operation "Uninstall" on target "Adobe Acrobat Reader DC"
+.NOTES
+Created by OH https://www.fearthepanda.com
+#>
+[CmdletBinding(SupportsShouldProcess=$True)]
+
+param (
+    [parameter (Mandatory=$true,
+    ValueFromPipeline = $true)]     
+    [string[]]
+    $UninstallSearchFilter
+)
+    
+    Begin {
+        $WorkingDir = $MyInvocation.PSScriptRoot
+
+        $RegUninstallPaths = @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+            'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall') 
+    }
+
+    process {        
+        foreach ($Filter in $UninstallSearchFilter) {
+            foreach ($Path in $RegUninstallPaths) {
+                if (Test-Path $Path) {
+                    #Get-ChildItem $Path | Where {$_.GetValue('DisplayName') -Like "*$Filter*"}# | 
+                    #Foreach { Start-Process 'C:\Windows\System32\msiexec.exe' "/x $($_.PSChildName) /qn" -Wait -NoNewWindow}
+
+                    $Results = Get-ChildItem $Path | Where {$_.GetValue('DisplayName') -Like "*$Filter*"}
+                    
+                    Foreach ($Result in $Results) {                        
+                        if ($PSCmdlet.ShouldProcess($Result.getvalue('displayname'),"Uninstall")) {
+                            Start-Process 'C:\Windows\System32\msiexec.exe' "/x $($Result.PSChildName) /qn" -Wait -NoNewWindow                            
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    end {}
+}
+
+#Script Entry point
+
+#Invoke-ApplicationRemoval "outlook 32-bit" -WhatIf
+
+#'reader dc'| Invoke-ApplicationRemoval -whatif
