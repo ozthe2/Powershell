@@ -6,7 +6,7 @@ Function Invoke-ApplicationRemoval {
 .DESCRIPTION
     Uninstalls one or more applications by searching the registry based on the 'DisplayName' that matches your filter.
     It is recommended that you run this function with the -WhatIf parameter first to ensure that it will uninstall the expected application(s)
-    By default, a 'like' search is performed; meaning if your filter is 'Adobe Acrobat', it woould find Adobe Acrobat Reader DC' AND 'Adobe Acrobat Reader Pro' and attempt removal.
+    By default, a 'like' search is performed; meaning if your filter is 'Adobe Acrobat', it would find Adobe Acrobat Reader DC' AND 'Adobe Acrobat Reader Pro' and attempt removal.
     If this is not desired, you can use the switch -Exact and change your filter to 'Adobe Acrobat Reader DC' and then only that exact application will be removed. 
 .PARAMETER UninstallSearchFilter
     The application name that you are looking to uninstall.  This can be part of a name and a 'like' search will be performed by default.
