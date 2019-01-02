@@ -1,4 +1,4 @@
-#ReadMe.md
+# ReadMe.md
 
-##JavaVersionManagement.ps1
+## JavaVersionManagement.ps1
 Uninstalls all existing versions of Java and then installs the new version
