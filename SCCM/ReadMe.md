@@ -14,3 +14,10 @@ Deploy using ConfigMgr by creating a new Application of type Script Installer an
 ```powershell
 powershell.exe -executionpolicy bypass -file .\FirefoxVersionManagement.ps1
 ```
+
+## AdobeReaderVersionManagement.ps1
+Installs and patches Adobe Reader DC   
+Deploy using ConfigMgr by creating a new Application of type Script Installer and then using the Installation Program of:
+```powershell
+powershell.exe -executionpolicy bypass -file .\AdobeReaderVersionManagement.ps1
+```
