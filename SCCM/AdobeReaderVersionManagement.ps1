@@ -5,7 +5,6 @@ Date: 2018-01-03
 Version: 1.0.0
 #>
 
-
 $WorkingDir = Get-Location
 
 #Stop processess
@@ -15,4 +14,4 @@ $WorkingDir = Get-Location
 Start-Process -FilePath 'C:\Windows\System32\msiexec.exe' -ArgumentList "/i $WorkingDir\acroread.msi TRANSFORMS=acroread.mst /q /norestart" -NoNewWindow -Wait
 
 #Install msp Patch
-Start-Process -FilePath 'C:\Windows\System32\msiexec.exe' -ArgumentList "/update AcroRdrDCUpd1901020064.msp /q /norestart" -NoNewWindow -Wait
+Start-Process -FilePath 'C:\Windows\System32\msiexec.exe' -ArgumentList "/update $WorkingDir\AcroRdrDCUpd1901020064.msp /q /norestart" -NoNewWindow -Wait
