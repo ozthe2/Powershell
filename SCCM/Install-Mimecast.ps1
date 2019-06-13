@@ -1,4 +1,79 @@
-#Requires -Version 3.0
+Function Invoke-ApplicationRemoval {
+<#
+.SYNOPSIS
+    Uninstalls an application
+.DESCRIPTION
+    Uninstalls one or more applications by searching the registry based on the 'DisplayName' that matches your filter.
+    It is recommended that you run this function with the -WhatIf parameter first to ensure that it will uninstall the expected application(s)
+    By default, a 'like' search is performed; meaning if your filter is 'Adobe Acrobat', it would find Adobe Acrobat Reader DC' AND 'Adobe Acrobat Reader Pro' and attempt removal.
+    If this is not desired, you can use the switch -Exact and change your filter to 'Adobe Acrobat Reader DC' and then only that exact application will be removed. 
+.PARAMETER UninstallSearchFilter
+    The application name that you are looking to uninstall.  This can be part of a name and a 'like' search will be performed by default.
+    The search is made against the applications 'DisplayName' found in the registry: 
+    HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall
+    or
+    HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall
+.EXAMPLE    
+PS C:\Scripts> 'firefox' | Invoke-ApplicationRemoval -WhatIf
+What if: Performing the operation "Uninstall" on target "Mozilla Firefox 63.0.3 (x64 en-GB)"
+What if: Performing the operation "Uninstall" on target "Mozilla Firefox 63.0.3 (x86 en-GB)"
+.EXAMPLE
+PS C:\Scripts> 'reader dc' | Invoke-ApplicationRemoval -WhatIf
+What if: Performing the operation "Uninstall" on target "Adobe Acrobat Reader DC"
+.PARAMETER Exact
+    Does not perform a 'like' search. Eg if your filter is 'Java', only applications with a display name exactly of 'Java' will be removed.
+    Performs a removal of any application whose registry DisplayName is an exact match for your filter.
+.EXAMPLE
+Invoke-ApplicationRemoval "Adobe Acrobat Reader DC" -Exact
+    If installed, Adobe Acrobat Reader DC will be uninstalled.  If Adobe Acrobat Reader Pro is also installed, this will remain.
+.NOTES
+Created by OH
+https://fearthepanda.com
+Version: 1.0.1
+#>
+[CmdletBinding(SupportsShouldProcess=$True)]
+
+param (
+    [parameter (Mandatory=$true,
+    ValueFromPipeline = $true)]     
+    [string[]]
+    $UninstallSearchFilter,
+
+    [Switch]
+    $Exact
+)
+    
+    Begin {
+        $WorkingDir = $MyInvocation.PSScriptRoot
+
+        $RegUninstallPaths = @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+            'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall') 
+    }
+
+    process {        
+        foreach ($Filter in $UninstallSearchFilter) {
+            foreach ($Path in $RegUninstallPaths) {
+                if (Test-Path $Path) {
+                    if ($Exact) {                   
+                        $Results = Get-ChildItem $Path | Where {$_.GetValue('DisplayName') -eq $Filter}
+                    } else {
+                        $Results = Get-ChildItem $Path | Where {$_.GetValue('DisplayName') -Like "*$Filter*"}
+                    }
+                    Foreach ($Result in $Results) {                        
+                        if ($PSCmdlet.ShouldProcess($Result.getvalue('displayname'),"Uninstall")) {
+                            Start-Process 'C:\Windows\System32\msiexec.exe' "/x $($Result.PSChildName) /qn" -Wait -NoNewWindow                            
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    end {}
+}
+
+
 Function Install-Mimecast {
 <#
 .SYNOPSIS
@@ -28,11 +103,11 @@ Date: 12-Oct-2018
 param (
     [parameter (Mandatory=$false)]
     [string]
-    $64bit_msi_Name = "Mimecast for Outlook 7.6.0.26320 (64 bit).msi",
+    $64bit_msi_Name = "Mimecast for outlook 7.7.0.362 (64 Bit).msi",
 
     [parameter (Mandatory=$false)]
     [string]
-    $32bit_msi_Name = "Mimecast for Outlook 7.6.0.26320 (32 bit).msi"
+    $32bit_msi_Name = "Mimecast for outlook 7.7.0.362 (32 Bit).msi"
 )
     
     Begin {
@@ -91,4 +166,12 @@ param (
 }
 
 #Script Entry point
+
+#Close outlook if its open
+Get-Process 'OUTLOOK' -ea SilentlyContinue | Stop-Process -Force
+
+#Uninstall previous versions of mimecast
+Invoke-ApplicationRemoval -UninstallSearchFilter "mimecast"
+
+#Install deployed version of Mimexast
 Install-Mimecast
