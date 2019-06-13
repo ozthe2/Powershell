@@ -1,4 +1,4 @@
-﻿#Requires -Version 3.0
+#Requires -Version 3.0
 Function Install-Mimecast {
 <#
 .SYNOPSIS
@@ -20,6 +20,8 @@ SCCM usage: Place this script and both msi's (32 and 64 bit) in the same source 
 Example:for Installation Program use the following:  powershell.exe -executionpolicy bypass -file ".\install-mimecast.ps1"
 Created by: OH
 Date: 12-Oct-2018
+
+#13-June-2019 - Version 1.1 - Added checking for O365 ProPlus installation
 #>
 [CmdletBinding()]
 
@@ -50,16 +52,35 @@ param (
                 $LocationSet = $false
             }
         }
+
+        # Test for O365 ProPlus...
+        if (!($LocationSet)) {
+            $OfficePath = 'HKLM:\Software\Microsoft\Office\ClickToRun\Scenario\INSTALL'
+            try {
+                Set-Location $OfficePath -ea stop -ev x
+                $LocationSet = $true
+            } catch {
+                $LocationSet = $false
+            }
+        }
     }
 
-    process {  
+    process {
+        #Check to see if outlook has started, if so, close it..Mimecast will not install if outlook is open.
+        Get-Process 'OUTLOOK' -ea SilentlyContinue | Stop-Process -Force
+
         if ($locationSet) {
-            #Check to see if outlook has started, if so, close it..Mimecast will not install if outlook is open.
-            Get-Process 'OUTLOOK' -ea SilentlyContinue | Stop-Process -Force
             #Check for bitness and install correct version
-            switch (Get-ItemPropertyValue -Name "Bitness") {
-                "x86" { Start-Process 'C:\Windows\System32\msiexec.exe' " /i ""$WorkingDir\$32bit_msi_Name"" /qn" -NoNewWindow -Wait }
-                "x64" { Start-Process 'C:\Windows\System32\msiexec.exe' " /i ""$WorkingDir\$64bit_msi_Name"" /qn" -NoNewWindow -Wait }
+            try {
+                switch (Get-ItemPropertyValue -Name "Bitness" -ea stop) {
+                    "x86" { Start-Process 'C:\Windows\System32\msiexec.exe' " /i ""$WorkingDir\$32bit_msi_Name"" /qn" -NoNewWindow -Wait }
+                    "x64" { Start-Process 'C:\Windows\System32\msiexec.exe' " /i ""$WorkingDir\$64bit_msi_Name"" /qn" -NoNewWindow -Wait }
+                }
+            } catch {
+                switch (Get-ItemPropertyValue -Name "Platform") {
+                    "x86" { Start-Process 'C:\Windows\System32\msiexec.exe' " /i ""$WorkingDir\$32bit_msi_Name"" /qn" -NoNewWindow -Wait }
+                    "x64" { Start-Process 'C:\Windows\System32\msiexec.exe' " /i ""$WorkingDir\$64bit_msi_Name"" /qn" -NoNewWindow -Wait }
+                }
             }
         }
     }
