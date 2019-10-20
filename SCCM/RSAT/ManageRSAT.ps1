@@ -12,6 +12,7 @@ Installs a core set of RSAT capabilities:
 - IPAM
 - Volume Activation
 - Certificate Services
+- Bitlocker
 
 To add or remove capabilities, simply edit the $Components array in the BEGIN section.
 See https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/features-on-demand-non-language-fod#remote-server-administration-tools-rsat
@@ -40,7 +41,7 @@ https://github.com/ozthe2
 
         $Components = @('Rsat.Dns.Tools~~~~0.0.1.0','Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0','Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0',
                         'Rsat.DHCP.Tools~~~~0.0.1.0','Rsat.FileServices.Tools~~~~0.0.1.0','Rsat.IPAM.Client.Tools~~~~0.0.1.0',
-                        'Rsat.VolumeActivation.Tools~~~~0.0.1.0','Rsat.CertificateServices.Tools~~~~0.0.1.0')
+                        'Rsat.VolumeActivation.Tools~~~~0.0.1.0','Rsat.CertificateServices.Tools~~~~0.0.1.0','Rsat.BitLocker.Recovery.Tools~~~~0.0.1.0')
 
         $val = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "UseWUServer" | select -ExpandProperty UseWUServer -ErrorAction SilentlyContinue
         Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "UseWUServer" -Value 0 -ErrorAction SilentlyContinue
@@ -79,6 +80,7 @@ Uninstalls a core set of RSAT capabilities:
 - IPAM
 - Volume Activation
 - Certificate Services
+- Bitlocker
 
 To add or remove capabilities, simply edit the $Components array in the BEGIN section.
 See https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/features-on-demand-non-language-fod#remote-server-administration-tools-rsat
@@ -107,7 +109,7 @@ https://github.com/ozthe2
 
         $Components = @('Rsat.Dns.Tools~~~~0.0.1.0','Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0','Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0',
                         'Rsat.DHCP.Tools~~~~0.0.1.0','Rsat.FileServices.Tools~~~~0.0.1.0','Rsat.IPAM.Client.Tools~~~~0.0.1.0',
-                        'Rsat.VolumeActivation.Tools~~~~0.0.1.0','Rsat.CertificateServices.Tools~~~~0.0.1.0')
+                        'Rsat.VolumeActivation.Tools~~~~0.0.1.0','Rsat.CertificateServices.Tools~~~~0.0.1.0','Rsat.BitLocker.Recovery.Tools~~~~0.0.1.0')
 
         $val = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "UseWUServer" | select -ExpandProperty UseWUServer -ErrorAction SilentlyContinue
         Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "UseWUServer" -Value 0 -ErrorAction SilentlyContinue
