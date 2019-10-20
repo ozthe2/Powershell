@@ -4,15 +4,15 @@ function Install-RSATCapabilites {
 Installs RSAT Capabilities for Windows 10 October 2018 Update or higher.
 .DESCRIPTION
 Installs a core set of RSAT capabilities:
-- DNS 
-- Group Policy
-- Active Directory Users and Computers
-- DHCP
-- File Services
-- IPAM
-- Volume Activation
-- Certificate Services
-- Bitlocker
+- DNS Server Tools
+- Group Policy Management Tools
+- Active Directory Domain Services and Lightweight Directory Services Tools
+- DHCP Server Tools
+- File Services Tools
+- IP Address Management (IPAM) Client
+- Volume Activation Tools
+- Active Directory Certificate Services Tools
+- Bitlocker Administration Utilties
 
 To add or remove capabilities, simply edit the $Components array in the BEGIN section.
 See https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/features-on-demand-non-language-fod#remote-server-administration-tools-rsat
@@ -72,15 +72,15 @@ function Uninstall-RSATCapabilites {
 Uninstalls RSAT Capabilities for Windows 10 October 2018 Update or higher.
 .DESCRIPTION
 Uninstalls a core set of RSAT capabilities:
-- DNS 
-- Group Policy
-- Active Directory Users and Computers
-- DHCP
-- File Services
-- IPAM
-- Volume Activation
-- Certificate Services
-- Bitlocker
+- DNS Server Tools
+- Group Policy Management Tools
+- Active Directory Domain Services and Lightweight Directory Services Tools
+- DHCP Server Tools
+- File Services Tools
+- IP Address Management (IPAM) Client
+- Volume Activation Tools
+- Active Directory Certificate Services Tools
+- Bitlocker Administration Utilties
 
 To add or remove capabilities, simply edit the $Components array in the BEGIN section.
 See https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/features-on-demand-non-language-fod#remote-server-administration-tools-rsat
