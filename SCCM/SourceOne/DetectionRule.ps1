@@ -1,6 +1,7 @@
 $RegistryKey32 = 'HKLM:\SOFTWARE\WOW6432Node\EMC\SourceOne\Versions'
 $RegistryKey64 = 'HKLM:\SOFTWARE\EMC\SourceOne\Versions' 
-$Value = 'OfflineAccess'
+$Value32 = 'OfflineAccess'
+$Value64 = 'OfflineAccessx64'
 $Data = '7.27.7017'
 
 $OfficePaths = @('HKLM:\Software\Microsoft\Office','HKLM:\Software\WOW6432Node\Microsoft\Office')
@@ -24,11 +25,11 @@ foreach ($Path in $OfficePaths) {
 }
 
 if ($Is32Bit) {
-    if ((Get-ItemProperty -Path $RegistryKey32 | Select-Object $Value -ExpandProperty $Value -ErrorAction SilentlyContinue) -eq $data) {
+    if ((Get-ItemProperty -Path $RegistryKey32 | Select-Object $Value -ExpandProperty $Value32 -ErrorAction SilentlyContinue) -eq $data) {
         Write-Host "Detected!"
     }
 } else {
-    if ((Get-ItemProperty -Path $RegistryKey64 | Select-Object $Value -ExpandProperty $Value -ErrorAction SilentlyContinue) -eq $data) {
+    if ((Get-ItemProperty -Path $RegistryKey64 | Select-Object $Value -ExpandProperty $Value64 -ErrorAction SilentlyContinue) -eq $data) {
         Write-Host "Detected!"
     }
 }
