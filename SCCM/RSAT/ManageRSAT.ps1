@@ -51,12 +51,12 @@ https://github.com/ozthe2
     PROCESS {
         foreach ($Component in $Components) {
             $InstallState = (Get-WindowsCapability -Name $Component -Online -ErrorAction SilentlyContinue).state
-                if ($InstallState -eq "NotPresent") {
-                    Write-Verbose "Adding: $Component..."
-                    Add-WindowsCapability -Online -Name $Component -ErrorAction SilentlyContinue
-                } else {
-                    write-verbose "$Component already present."
-                }
+            if ($InstallState -eq "NotPresent") {
+                Write-Verbose "Adding: $Component..."
+                Add-WindowsCapability -Online -Name $Component -ErrorAction SilentlyContinue
+            } else {
+                write-verbose "$Component already present."
+            }
         }
     }
 
@@ -119,12 +119,12 @@ https://github.com/ozthe2
     PROCESS {
         foreach ($Component in $Components) {
             $InstallState = (Get-WindowsCapability -Name $Component -Online -ErrorAction SilentlyContinue).state
-                if ($InstallState -eq "Installed") {
-                    Write-Verbose "Uninstalling: $Component..."
-                    Remove-WindowsCapability -Online -Name $Component -ErrorAction SilentlyContinue
-                } else {
-                    write-verbose "Cannot uninstall $Component as it is not present on this system."
-                }
+            if ($InstallState -eq "Installed") {
+                Write-Verbose "Uninstalling: $Component..."
+                Remove-WindowsCapability -Online -Name $Component -ErrorAction SilentlyContinue
+            } else {
+                write-verbose "Cannot uninstall $Component as it is not present on this system."
+            }
         }
     }
 
