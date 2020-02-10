@@ -21,3 +21,9 @@ Deploy using ConfigMgr by creating a new Application of type Script Installer an
 ```powershell
 powershell.exe -executionpolicy bypass -file .\AdobeReaderVersionManagement.ps1
 ```
+
+## OneDriveForBusiness
+- Invoke-ApplicationInstall.ps1  
+Installs OneDrive for Business (Machine-wide) 
+- Detection.ps1  
+Detection script.   
