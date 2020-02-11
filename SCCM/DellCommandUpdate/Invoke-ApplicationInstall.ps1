@@ -79,8 +79,8 @@ Function Invoke-PreInstallation {
 }
 
 function Invoke-PostInstallation {
-    # Remove desktop shortcut icon as not required.
-    remove-item -Path "C:\Users\Public\Desktop\Zoom.lnk" -Filter "*.lnk" -ErrorAction SilentlyContinue
+    # Anything you do here will occur **after** the installation...
+    # Perhaps copy some files, register some DLL's or anything else you can think of!
 }
 
 Function Invoke-ApplicationInstall {
